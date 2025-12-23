@@ -41,6 +41,7 @@
         config: { xray: false, magic: false, hidden_fields: false, teleport: true },
         fieldClipboard: null,
         burstInterval: null,
+        keysSetup: false,
 
         updateConfig: function(newConfig) {
             const hiddenChanged = this.config.hidden_fields !== newConfig.hidden_fields;
@@ -51,6 +52,7 @@
         },
 
         refreshState: function(silent) {
+            // X-Ray
             if (this.config.xray) {
                 document.body.classList.add('frappe-pilot-xray-active');
                 this.startObserver();
@@ -60,14 +62,35 @@
                 document.querySelectorAll('.frappe-pilot-badge').forEach(el => el.remove());
                 this.stopObserver();
             }
+            // Hidden
             if(this.config.hidden_fields) this.toggleHiddenFields(true, true);
-            this.injectTeleportButton(); 
+            // Teleport
+            this.injectTeleportButton();
+            // Magic Keys
+            this.setupKeys(); 
         },
 
-        init: function() { this.refreshState(true); },
+        init: function() { 
+            this.refreshState(true);
+            this.setupKeys();
+        },
+
+        setupKeys: function() {
+            if (this.keysSetup) return;
+            this.keysSetup = true;
+
+            document.addEventListener('keydown', (e) => {
+                const isTrigger = (e.altKey || e.metaKey) && e.shiftKey && e.code === 'KeyF';
+                if (this.config.magic && isTrigger) { 
+                    e.preventDefault(); 
+                    e.stopPropagation();
+                    this.fillMagicData(); 
+                }
+            });
+        },
 
         // ============================================================
-        //  FEATURE 1: X-RAY (FIX: Burst Polling + Self-Healing)
+        //  FEATURE 1: X-RAY
         // ============================================================
         startObserver: function() {
             if (observer) return;
@@ -78,16 +101,13 @@
                 }
                 
                 if (shouldUpdate) {
-                    // 1. Immediate Update (Shows Name immediately)
                     this.refreshXRay();
-
-                    // 2. Burst Polling (Retries for 2 seconds to catch Type/Options arriving late)
                     if (this.burstInterval) clearInterval(this.burstInterval);
                     let count = 0;
                     this.burstInterval = setInterval(() => {
                         count++;
-                        this.refreshXRay(); // This will auto-upgrade incomplete badges
-                        if (count >= 10) clearInterval(this.burstInterval); // Stop after 2s
+                        this.refreshXRay();
+                        if (count >= 10) clearInterval(this.burstInterval);
                     }, 200);
                 }
             });
@@ -98,8 +118,6 @@
 
         refreshXRay: function() {
             if (!this.config.xray) return;
-            
-            // Cleanup orphans (detached from DOM)
             document.querySelectorAll('.frappe-pilot-badge').forEach(b => {
                  if(!document.body.contains(b)) b.remove();
             });
@@ -112,11 +130,9 @@
                 let fieldname = control.getAttribute('data-fieldname');
                 if (!fieldname) return;
                 
-                // Existing Badge Logic
                 const existingBadge = control.querySelector('.frappe-pilot-badge') || 
                                       (control.nextSibling && control.nextSibling.classList && control.nextSibling.classList.contains('frappe-pilot-badge') ? control.nextSibling : null);
 
-                // SKIP checks for layout garbage
                 if (GARBAGE_REGEX.test(fieldname)) return;
                 if (control.classList.contains('section-break') || 
                     control.classList.contains('col-break') ||
@@ -124,27 +140,21 @@
                     control.classList.contains('tab-break')) return;
                 if (control.closest('.grid-row') && !control.closest('.grid-row-open')) return;
 
-                // TRY TO FIND DEFINITION
                 let fieldDef = this.findFieldDef(fieldname, control);
                 if (fieldDef && IGNORED_TYPES.includes(fieldDef.fieldtype)) return;
 
-                // --- SELF-HEALING LOGIC ---
-                // If we have a badge, but it was marked "incomplete" (missing type), 
-                // and we NOW have the definition, delete the old badge so we can render the new one.
                 if (existingBadge) {
                     if (existingBadge.getAttribute('data-incomplete') === 'true' && fieldDef) {
-                         existingBadge.remove(); // Heal it!
+                         existingBadge.remove();
                     } else {
-                        return; // Badge is good, skip
+                        return;
                     }
                 }
-
                 this.renderBadge(control, fieldDef, fieldname);
             });
         },
 
         findFieldDef: function(fieldname, control) {
-            // A. Dialog
             if (window.cur_dialog && window.cur_dialog.wrapper.is(':visible')) {
                 if (window.cur_dialog.fields) {
                     const found = window.cur_dialog.fields.find(f => f.fieldname === fieldname);
@@ -154,7 +164,6 @@
                     return window.cur_dialog.fields_dict[fieldname].df;
                 }
             }
-            // B. Grid
             if (window.cur_frm) {
                  const gridRowOpen = control ? control.closest('.grid-row-open') : null;
                  if (gridRowOpen) {
@@ -174,11 +183,9 @@
                     }
                  }
             }
-            // C. Form
             if (window.cur_frm) {
                 let found = frappe.meta.get_docfield(window.cur_frm.doctype, fieldname);
                 if (found) return found;
-                
                 if (window.cur_frm.fields_dict && window.cur_frm.fields_dict[fieldname]) {
                     return window.cur_frm.fields_dict[fieldname].df;
                 }
@@ -191,10 +198,6 @@
 
             const badge = document.createElement('span');
             badge.className = 'frappe-pilot-badge';
-            
-            // --- MARKER FOR SELF-HEALING ---
-            // If we don't have a definition, mark this badge as incomplete.
-            // This allows the next poll to overwrite it once data arrives.
             if (!fieldDef) {
                 badge.setAttribute('data-incomplete', 'true');
             }
@@ -210,7 +213,6 @@
             let fName = fieldDef ? fieldDef.fieldname : fallbackName;
             let fType = fieldDef ? fieldDef.fieldtype : '';
             
-            // --- OPTION PARSER ---
             let fOpts = '';
             if (fieldDef && fieldDef.options) {
                 if (Array.isArray(fieldDef.options)) {
@@ -262,7 +264,6 @@
                 badge.appendChild(iconSpan);
             }
 
-            // ATTACHMENT LOGIC
             if (fieldDef?.fieldtype === 'Button') {
                 const btn = control.querySelector('button');
                 if (btn) {
@@ -284,7 +285,6 @@
             }
         },
 
-        // --- FIELD ACTION LOGIC ---
         handleFieldAction: function(fieldDef, control) {
             let context = window.cur_dialog && window.cur_dialog.wrapper.is(':visible') ? window.cur_dialog : window.cur_frm;
             if(!context) return;
@@ -387,10 +387,10 @@
         },
 
         // ============================================================
-        //  FEATURE 2: MAGIC FILLER
+        //  FEATURE 2: MAGIC FILLER (STRICT MANDATORY ONLY)
         // ============================================================
         fillMagicData: async function() {
-            frappe.show_alert('🪄 Magic Filler...', 1);
+            frappe.show_alert('🪄 Magic Filler (Mandatory Only)...', 1);
             let context = window.cur_dialog && window.cur_dialog.wrapper.is(':visible') ? window.cur_dialog : window.cur_frm;
             if(!context) { frappe.msgprint("No active form."); return; }
             
@@ -424,13 +424,14 @@
                 if (!field || field.hidden || field.read_only || !field.fieldname) continue;
                 if (['Section Break', 'Column Break', 'HTML', 'Tab Break', 'Button'].includes(field.fieldtype)) continue;
 
-                const fname = field.fieldname.toLowerCase();
-                const isMandatory = field.reqd === 1;
-                const isImportant = /mobile|phone|email|contact|name|gender/.test(fname);
-                if (!isMandatory && !isImportant) continue;
+                // STRICT: ONLY MANDATORY FIELDS
+                if (field.reqd !== 1) continue;
+
                 if (['naming_series', 'company'].includes(field.fieldname)) continue;
 
+                const fname = field.fieldname.toLowerCase();
                 let val = null;
+                
                 if (fname.includes('mobile') || fname.includes('phone') || field.fieldtype === 'Phone') val = mobile;
                 else if (fname.includes('email')) val = email;
                 else if (fname === 'customer_name' || fname === 'supplier_name') val = fullName;
@@ -444,10 +445,13 @@
                 else if (field.fieldtype === 'Select' && field.options) {
                      let opts = [];
                      if (Array.isArray(field.options)) opts = field.options;
-                     else opts = field.options.split('\n');
+                     else if (typeof field.options === 'string') opts = field.options.split('\n');
                      
                      opts = opts.filter(o => o && (typeof o === 'string' ? o.trim() !== '' : true)); 
-                     if (opts.length > 0) val = opts[Math.floor(Math.random()*opts.length)];
+                     if (opts.length > 0) {
+                        let rand = opts[Math.floor(Math.random()*opts.length)];
+                        val = (typeof rand === 'object' && rand.value) ? rand.value : rand;
+                     }
                 }
                 else if (field.fieldtype === 'Link') {
                      if (!fname.includes('type') && !fname.includes('group')) {
@@ -461,7 +465,7 @@
                     count++;
                 }
             }
-            frappe.show_alert(`🪄 Filled ${count} fields.`);
+            frappe.show_alert(`🪄 Filled ${count} mandatory fields.`);
         },
 
         // ============================================================
@@ -587,6 +591,9 @@
             window.open(url, '_blank');
         },
 
+        // ============================================================
+        //  FEATURE 5: DATA EXTRACTION
+        // ============================================================
         getAvailableFields: function() {
              let fields = [], context = null, doctypeName = "Data";
              
@@ -634,13 +641,6 @@
              }).filter(f => f !== null);
 
              return { fields: mapped, doctype: doctypeName };
-        },
-
-        setupKeys: function() {
-            document.addEventListener('keydown', (e) => {
-                const isTrigger = (e.altKey || e.metaKey) && e.shiftKey && e.code === 'KeyF';
-                if (this.config.magic && isTrigger) { e.preventDefault(); this.fillMagicData(); }
-            });
         }
     };
 
