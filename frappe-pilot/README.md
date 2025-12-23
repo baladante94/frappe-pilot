@@ -1,38 +1,66 @@
-# Frappe Pilot - Build & Test Instructions
+# 🚀 Frappe Pilot
 
-## 1. Installation
+**The ultimate browser extension for Frappe & ERPNext developers.**
 
-1.  **Open Chrome Extensions**:
-    - Navigate to `chrome://extensions` in your browser.
-2.  **Enable Developer Mode**:
-    - Toggle the "Developer mode" switch in the top-right corner.
-3.  **Load Unpacked**:
-    - Click the "Load unpacked" button.
-    - Select the `frappe-pilot` directory from your project folder:
-      `/Users/dante/Documents/Projects/frappe-pilot`
+Frappe Pilot injects a suite of power-user tools directly into the Frappe UI, saving you hours of time on debugging, data entry, and configuration.
 
-## 2. Usage & Testing
+![Frappe Pilot Demo](https://via.placeholder.com/800x400?text=Frappe+Pilot+Preview)
 
-### Initial Setup
-1.  Navigate to any Frappe or ERPNext site (e.g., your local instance or a demo site).
-2.  **Important**: Refresh the page after installing the extension to ensure the script is injected.
-3.  Click the **Frappe Pilot icon** in the browser toolbar to open the popup.
-4.  Enable the features you want to test (X-Ray, Teleport, etc.).
+## ✨ Features
 
-### Feature Testing
+### 1. 🩻 X-Ray Specs
+Hover over any field to instantly see its internal metadata.
+- Displays **Fieldname**, **Fieldtype**, and **Options** (e.g., `status | Select : Open, Closed`).
+- **Context-Aware:** Works on Forms, Child Tables, and **Pop-up Dialogs**.
+- **Clipboard Action:** One-click to copy the fieldname or value.
 
-#### 👁️ X-Ray Mode
-- **Toggle**: Turn on "X-Ray Mode" in the popup or press `Alt+X`.
-- **Verify**: You should see inline badges next to field labels. The red outline has been removed.
-- **Action**: Click a badge to copy the fieldname.
+### 2. 🪄 Magic Filler (`Alt + Shift + F`)
+Populate forms with realistic dummy data instantly.
+- **Smart Detection:** Fills Names, Emails, Phones, Dates, and Links based on field type.
+- **Mandatory Only:** Strictly targets mandatory fields (`reqd=1`) to ensure successful saves without clutter.
+- **Dialog Support:** Works perfectly inside modals.
 
-#### 🪄 Magic Filler
-- **Toggle**: Ensure "Magic Filler" is enabled in the popup.
-- **Action**: Press `Alt+Shift+F` on a Form.
-- **Verify**: Mandatory fields should be populated with realistic data fetched from `randomuser.me`.
+### 3. 👻 Reveal Hidden Fields
+Debug visibility rules without touching the code.
+- Toggles `hidden=1` fields to be visible.
+- Adds a visual `(Hidden)` tag to identifying debug fields.
+- Highlights wrapper borders for clarity.
 
-## 3. Troubleshooting
+### 4. 📦 Data Teleport
+Move data between instances (e.g., Production to Local) without CSV exports.
+1. Go to any List View.
+2. Select rows.
+3. Click **Teleport > Copy Selected**.
+4. Go to another instance and click **Teleport > Paste Docs**.
+5. *Pilot handles dependency cleanup (removing `name`, `owner`, etc.) automatically.*
 
-- **"Teleport not working"**: Ensure you are on a valid Frappe page and have refreshed after install. Check if `Cmd+K` is conflicting with other extensions.
-- **"Nothing happens"**: Open the browser console (`F12` or `Cmd+Opt+J`) and check for errors.
-- **Persistence**: Settings are saved automatically. If you restart the browser, your preferences should remain.
+### 5. 🛠️ Schema Export
+Need a list of fields for documentation or a client script?
+- Exports a clean list of valid data fields from the current view.
+- Automatically ignores layout elements (Section Breaks, Column Breaks, Spacers).
+
+## ⌨️ Shortcuts
+
+| Action | Windows / Linux | Mac |
+| :--- | :--- | :--- |
+| **Magic Filler** | `Alt` + `Shift` + `F` | `Cmd` + `Shift` + `F` |
+| **Toggle X-Ray** | *Toggle in Widget* | *Toggle in Widget* |
+
+## 📦 Installation
+
+### Chrome / Edge / Brave
+1. Clone or download this repository.
+2. Open your browser and navigate to `chrome://extensions`.
+3. Enable **Developer Mode** (top right).
+4. Click **Load Unpacked**.
+5. Select the `frappe-pilot` folder.
+
+## 🤝 Contributing
+
+Found a bug? The X-Ray logic is sensitive to DOM changes in Frappe.
+1. Fork the repo.
+2. Create a feature branch.
+3. Submit a Pull Request.
+
+**License:** MIT
+**Built for the Frappe Community.**
