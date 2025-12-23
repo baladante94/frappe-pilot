@@ -1,0 +1,50 @@
+/* styles.css */
+
+/* X-Ray Badges */
+.frappe-pilot-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #fff5f5;
+    border: 1px solid #fcb3b3;
+    color: #c02828;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    margin-left: 6px;
+    cursor: copy;
+    vertical-align: middle;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    z-index: 100;
+    line-height: 1.2;
+    transition: all 0.1s ease;
+    white-space: normal;
+    max-width: 220px;
+    text-align: left;
+    flex-wrap: wrap; /* Allow items to wrap naturally */
+}
+
+.frappe-pilot-badge:hover {
+    background-color: #c02828;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 101;
+}
+
+.frappe-pilot-badge .fp-name {
+    font-weight: 700;
+    margin-right: 4px;
+}
+
+.frappe-pilot-badge .fp-meta {
+    opacity: 0.85;
+    font-size: 0.9em;
+    word-break: break-word;
+}
+
+/* X-Ray Active State on Body */
+.frappe-pilot-xray-active .control-label {
+    /* Optional: make labels pop a bit more when active */
+}

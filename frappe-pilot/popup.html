@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frappe Pilot</title>
+    <style>
+        :root {
+            --primary: #2490ef;
+            --primary-hover: #177ccf;
+            --bg-app: #f4f6f8;
+            --bg-card: #ffffff;
+            --text-main: #1f272e;
+            --text-sub: #68768a;
+            --border: #eaeff5;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        body {
+            width: 350px;
+            margin: 0;
+            background-color: var(--bg-app);
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- Header --- */
+        .header {
+            padding: 18px 24px;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 0 var(--border);
+            z-index: 10;
+            position: relative;
+        }
+        
+        .brand { display: flex; align-items: center; gap: 10px; }
+        
+        .brand-icon {
+            font-size: 20px; background: #eaf5ff; width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center; border-radius: 12px;
+        }
+
+        .brand-text h1 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+        
+        .version-badge {
+            font-size: 10px; background: var(--bg-app); color: var(--text-sub);
+            padding: 2px 6px; border-radius: 6px; font-weight: 600; border: 1px solid var(--border);
+        }
+
+        /* --- Content Container --- */
+        .content { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+        /* --- Cards --- */
+        .card {
+            background: var(--bg-card); border-radius: var(--radius); padding: 4px;
+            box-shadow: var(--shadow); border: 1px solid white;
+        }
+
+        .control-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; border-bottom: 1px solid var(--border);
+        }
+        .control-item:last-child { border-bottom: none; }
+
+        .control-info { display: flex; flex-direction: column; gap: 2px; }
+        .label { font-size: 13px; font-weight: 600; }
+
+        .shortcut {
+            font-size: 10px; color: var(--text-sub); background: var(--bg-app);
+            padding: 2px 6px; border-radius: 4px; display: inline-block;
+            font-family: monospace; border: 1px solid #e0e5ea;
+        }
+        
+        .debug-badge {
+            font-size: 9px; color: var(--primary); background: #eaf5ff;
+            padding: 2px 6px; border-radius: 4px; display: inline-block;
+            font-weight: 600; text-transform: uppercase;
+        }
+
+        /* --- Switch Toggle --- */
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #e2e8f0; transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 18px; width: 18px; left: 2px; bottom: 2px;
+            background-color: white; transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        /* --- Exporter Section --- */
+        .export-card {
+            background: var(--bg-card); border-radius: var(--radius);
+            box-shadow: var(--shadow); overflow: hidden; transition: all 0.3s ease;
+        }
+
+        .export-trigger {
+            padding: 14px 20px; display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; background: white; user-select: none;
+        }
+        .export-trigger:hover { background: #fafbff; }
+        .export-trigger span { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+
+        .arrow { transition: transform 0.3s ease; font-size: 10px; color: var(--text-sub); }
+        .export-trigger.expanded .arrow { transform: rotate(180deg); }
+
+        .export-content {
+            display: none; padding: 0 16px 16px 16px; border-top: 1px solid var(--border); background: #fafbff;
+        }
+
+        .section-title {
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--text-sub); font-weight: 700; margin: 12px 0 8px 0;
+        }
+
+        .col-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+
+        .pill-checkbox {
+            display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-main);
+            cursor: pointer; background: white; padding: 6px 8px; border-radius: 6px;
+            border: 1px solid #e0e5ea; transition: all 0.2s;
+        }
+        .pill-checkbox:hover { border-color: var(--primary); }
+        .pill-checkbox input { margin: 0; accent-color: var(--primary); }
+
+        .btn {
+            width: 100%; padding: 10px; border: none; border-radius: var(--radius-sm);
+            font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .btn-secondary { background: white; border: 1px solid #d1d8dd; color: var(--text-main); margin-bottom: 10px; }
+        .btn-secondary:hover { background: #f1f3f5; transform: translateY(-1px); }
+        
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 6px rgba(36, 144, 239, 0.2); }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+
+        #field-list-preview {
+            max-height: 180px; overflow-y: auto; background: white; border: 1px solid var(--border);
+            border-radius: 8px; margin-bottom: 12px; display: none;
+        }
+        #field-list-preview::-webkit-scrollbar { width: 6px; }
+        #field-list-preview::-webkit-scrollbar-thumb { background-color: #d1d8dd; border-radius: 10px; }
+
+        .list-header {
+            padding: 8px 12px; background: #f8f9fa; border-bottom: 1px solid var(--border);
+            font-size: 11px; font-weight: 600; position: sticky; top: 0; display: flex; align-items: center; gap: 8px;
+        }
+
+        .list-item {
+            padding: 8px 12px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 10px; font-size: 12px;
+        }
+        .list-item:last-child { border-bottom: none; }
+        .list-item label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; cursor: pointer; }
+
+        .status-bar { text-align: center; font-size: 11px; color: var(--text-sub); padding: 10px; background: transparent; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="brand">
+            <div class="brand-icon">🚀</div>
+            <div class="brand-text"><h1>Frappe Pilot</h1></div>
+        </div>
+        <div class="version-badge">v28.0</div>
+    </div>
+
+    <div class="content">
+        <div class="card">
+            <div class="control-item">
+                <div class="control-info">
+                    <span class="label">X-Ray Specs</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="xray"><span class="slider"></span></label>
+            </div>
+
+            <div class="control-item">
+                <div class="control-info">
+                    <span class="label">Magic Filler</span>
+                    <span class="shortcut">Alt/Cmd + Shift + F</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="magic"><span class="slider"></span></label>
+            </div>
+
+            <div class="control-item">
+                <div class="control-info">
+                    <span class="label">Reveal Hidden</span>
+                    <span class="debug-badge">Debug</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="hidden_fields"><span class="slider"></span></label>
+            </div>
+
+            <div class="control-item">
+                <div class="control-info">
+                    <span class="label">Data Teleport</span>
+                    <span class="label" style="font-size:10px; font-weight:normal; color:#6c7682">List View Copy/Paste</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="teleport"><span class="slider"></span></label>
+            </div>
+        </div>
+
+        <div class="export-card">
+            <div class="export-trigger" id="toggle-export">
+                <span><span style="font-size:16px">📥</span> Data Exporter</span>
+                <span class="arrow">▼</span>
+            </div>
+            
+            <div class="export-content" id="export-panel">
+                <div class="section-title">Columns to Export</div>
+                <div class="col-grid">
+                    <label class="pill-checkbox"><input type="checkbox" id="col-label" checked> Label</label>
+                    <label class="pill-checkbox"><input type="checkbox" id="col-name" checked> Name</label>
+                    <label class="pill-checkbox"><input type="checkbox" id="col-type" checked> Type</label>
+                    <label class="pill-checkbox"><input type="checkbox" id="col-opts" checked> Opts</label>
+                    <label class="pill-checkbox"><input type="checkbox" id="col-val"> Value</label>
+                </div>
+                <button id="btn-scan" class="btn btn-secondary"><span>🔍 Scan Fields</span></button>
+                <div id="field-list-preview"></div>
+                <button id="btn-csv" class="btn btn-primary" style="display: none;"><span>Download CSV</span></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar" id="status-msg">Ready to assist.</div>
+    <script src="popup.js"></script>
+</body>
+</html>
