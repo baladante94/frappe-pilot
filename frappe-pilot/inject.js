@@ -40,6 +40,7 @@
     window.frappePilot = {
         config: { xray: false, magic: false, hidden_fields: false, teleport: true },
         fieldClipboard: null,
+        burstInterval: null,
 
         updateConfig: function(newConfig) {
             const hiddenChanged = this.config.hidden_fields !== newConfig.hidden_fields;
@@ -50,7 +51,6 @@
         },
 
         refreshState: function(silent) {
-            // X-Ray
             if (this.config.xray) {
                 document.body.classList.add('frappe-pilot-xray-active');
                 this.startObserver();
@@ -60,16 +60,14 @@
                 document.querySelectorAll('.frappe-pilot-badge').forEach(el => el.remove());
                 this.stopObserver();
             }
-            // Hidden
             if(this.config.hidden_fields) this.toggleHiddenFields(true, true);
-            // Teleport
             this.injectTeleportButton(); 
         },
 
         init: function() { this.refreshState(true); },
 
         // ============================================================
-        //  FEATURE 1: X-RAY (Universal Options & Table Fixes)
+        //  FEATURE 1: X-RAY (FIX: Burst Polling + Self-Healing)
         // ============================================================
         startObserver: function() {
             if (observer) return;
@@ -78,9 +76,19 @@
                 for (let m of mutations) {
                      if (m.type === 'childList' && m.addedNodes.length > 0) shouldUpdate = true;
                 }
+                
                 if (shouldUpdate) {
-                    if(this.debounce) clearTimeout(this.debounce);
-                    this.debounce = setTimeout(() => this.refreshXRay(), 200);
+                    // 1. Immediate Update (Shows Name immediately)
+                    this.refreshXRay();
+
+                    // 2. Burst Polling (Retries for 2 seconds to catch Type/Options arriving late)
+                    if (this.burstInterval) clearInterval(this.burstInterval);
+                    let count = 0;
+                    this.burstInterval = setInterval(() => {
+                        count++;
+                        this.refreshXRay(); // This will auto-upgrade incomplete badges
+                        if (count >= 10) clearInterval(this.burstInterval); // Stop after 2s
+                    }, 200);
                 }
             });
             observer.observe(document.body, { childList: true, subtree: true });
@@ -90,90 +98,144 @@
 
         refreshXRay: function() {
             if (!this.config.xray) return;
-            if (window.cur_list && !window.cur_dialog) return;
-
+            
+            // Cleanup orphans (detached from DOM)
             document.querySelectorAll('.frappe-pilot-badge').forEach(b => {
-                if(!document.body.contains(b)) b.remove();
+                 if(!document.body.contains(b)) b.remove();
             });
 
             const controls = document.querySelectorAll('[data-fieldname]');
-            const IGNORED_TYPES = ['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Button', 'Fold', 'Spacer'];
+            const GARBAGE_REGEX = /^(sec_break|col_break|tab_break|column_break|section_break|spacer_|header_|__)/i;
+            const IGNORED_TYPES = ['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Fold', 'Spacer', 'Heading', 'Image'];
 
             controls.forEach(control => {
-                if (control.querySelector('.frappe-pilot-badge')) return;
-
                 let fieldname = control.getAttribute('data-fieldname');
-                if (!fieldname || fieldname.startsWith('__')) return;
+                if (!fieldname) return;
+                
+                // Existing Badge Logic
+                const existingBadge = control.querySelector('.frappe-pilot-badge') || 
+                                      (control.nextSibling && control.nextSibling.classList && control.nextSibling.classList.contains('frappe-pilot-badge') ? control.nextSibling : null);
 
-                // STRICT: Skip collapsed rows, show only expanded
+                // SKIP checks for layout garbage
+                if (GARBAGE_REGEX.test(fieldname)) return;
+                if (control.classList.contains('section-break') || 
+                    control.classList.contains('col-break') ||
+                    control.classList.contains('column-break') ||
+                    control.classList.contains('tab-break')) return;
                 if (control.closest('.grid-row') && !control.closest('.grid-row-open')) return;
 
-                let fieldDef = null;
+                // TRY TO FIND DEFINITION
+                let fieldDef = this.findFieldDef(fieldname, control);
+                if (fieldDef && IGNORED_TYPES.includes(fieldDef.fieldtype)) return;
 
-                // 1. Expanded Child Table
-                const gridRowOpen = control.closest('.grid-row-open');
-                if (gridRowOpen) {
+                // --- SELF-HEALING LOGIC ---
+                // If we have a badge, but it was marked "incomplete" (missing type), 
+                // and we NOW have the definition, delete the old badge so we can render the new one.
+                if (existingBadge) {
+                    if (existingBadge.getAttribute('data-incomplete') === 'true' && fieldDef) {
+                         existingBadge.remove(); // Heal it!
+                    } else {
+                        return; // Badge is good, skip
+                    }
+                }
+
+                this.renderBadge(control, fieldDef, fieldname);
+            });
+        },
+
+        findFieldDef: function(fieldname, control) {
+            // A. Dialog
+            if (window.cur_dialog && window.cur_dialog.wrapper.is(':visible')) {
+                if (window.cur_dialog.fields) {
+                    const found = window.cur_dialog.fields.find(f => f.fieldname === fieldname);
+                    if (found) return found.df || found;
+                }
+                if (window.cur_dialog.fields_dict && window.cur_dialog.fields_dict[fieldname]) {
+                    return window.cur_dialog.fields_dict[fieldname].df;
+                }
+            }
+            // B. Grid
+            if (window.cur_frm) {
+                 const gridRowOpen = control ? control.closest('.grid-row-open') : null;
+                 if (gridRowOpen) {
                     const gridWrapper = gridRowOpen.closest('.form-grid');
-                    if (gridWrapper && window.cur_frm) {
-                        let parentTableField = null;
+                    if (gridWrapper) {
                         const allFields = window.cur_frm.meta.fields.filter(f => f.fieldtype === 'Table');
-                        
+                        let parentTableField = null;
                         for (let tf of allFields) {
                             if (gridWrapper.closest(`[data-fieldname="${tf.fieldname}"]`)) {
                                 parentTableField = tf;
                                 break;
                             }
                         }
-
                         if (parentTableField && parentTableField.options) {
-                            let childDocType = parentTableField.options;
-                            fieldDef = frappe.meta.get_docfield(childDocType, fieldname);
+                            return frappe.meta.get_docfield(parentTableField.options, fieldname);
                         }
                     }
-                }
-                // 2. Main Form
-                else if (window.cur_frm) {
-                    fieldDef = frappe.meta.get_docfield(window.cur_frm.doctype, fieldname);
-                }
-                // 3. Dialog
-                else if (window.cur_dialog) {
-                    fieldDef = window.cur_dialog.fields_dict[fieldname]?.df;
-                }
-
-                if (fieldDef && IGNORED_TYPES.includes(fieldDef.fieldtype)) return;
+                 }
+            }
+            // C. Form
+            if (window.cur_frm) {
+                let found = frappe.meta.get_docfield(window.cur_frm.doctype, fieldname);
+                if (found) return found;
                 
-                this.renderBadge(control, fieldDef, fieldname);
-            });
+                if (window.cur_frm.fields_dict && window.cur_frm.fields_dict[fieldname]) {
+                    return window.cur_frm.fields_dict[fieldname].df;
+                }
+            }
+            return null;
         },
 
         renderBadge: function(control, fieldDef, fallbackName) {
-            let target = control.querySelector('.control-label');
-            if(!target) target = control.querySelector('label'); 
-            if(!target && control.closest('.grid-row-open')) {
-                 target = control.closest('.form-group')?.querySelector('.control-label');
-            }
-            if(!target || target.querySelector('.frappe-pilot-badge')) return;
+            if (fieldDef && fieldDef.df) fieldDef = fieldDef.df;
 
             const badge = document.createElement('span');
             badge.className = 'frappe-pilot-badge';
+            
+            // --- MARKER FOR SELF-HEALING ---
+            // If we don't have a definition, mark this badge as incomplete.
+            // This allows the next poll to overwrite it once data arrives.
+            if (!fieldDef) {
+                badge.setAttribute('data-incomplete', 'true');
+            }
+
             badge.style.display = 'inline-flex';
             badge.style.alignItems = 'center';
-            badge.style.gap = '4px';
+            badge.style.gap = '6px';
+            badge.style.marginLeft = '10px';
+            badge.style.alignSelf = 'center'; 
+            badge.style.whiteSpace = 'nowrap';
+            badge.style.maxWidth = '100%';
 
             let fName = fieldDef ? fieldDef.fieldname : fallbackName;
             let fType = fieldDef ? fieldDef.fieldtype : '';
-            let fOpts = fieldDef ? fieldDef.options : '';
+            
+            // --- OPTION PARSER ---
+            let fOpts = '';
+            if (fieldDef && fieldDef.options) {
+                if (Array.isArray(fieldDef.options)) {
+                    fOpts = fieldDef.options.map(o => {
+                        if (typeof o === 'object' && o !== null) return o.label || o.value || '';
+                        return o;
+                    }).join(', ');
+                } else {
+                    fOpts = String(fieldDef.options);
+                }
+            }
 
-            // TEXT
             const textSpan = document.createElement('span');
             textSpan.className = 'fp-badge-text';
             textSpan.style.cursor = 'copy';
+            textSpan.style.maxWidth = '250px';
+            textSpan.style.overflow = 'hidden';
+            textSpan.style.textOverflow = 'ellipsis';
+            textSpan.style.display = 'block';
             
             let meta = fType;
-            // FIX: Show Options for ALL field types if present
             if (fOpts) {
-                if (fOpts.length > 25) fOpts = fOpts.substring(0, 22) + '...';
-                meta += ` : ${fOpts}`;
+                let cleanOpts = fOpts.replace(/\n/g, ', ');
+                if (cleanOpts.length > 25) cleanOpts = cleanOpts.substring(0, 22) + '...';
+                meta += ` : ${cleanOpts}`;
             }
             textSpan.innerHTML = `<b>${fName}</b> <span style="opacity:0.6">| ${meta}</span>`;
             
@@ -184,22 +246,42 @@
                 frappe.show_alert(`Copied: ${fName}`);
             };
 
-            // ICON
-            const iconSpan = document.createElement('span');
-            iconSpan.innerHTML = '📋';
-            iconSpan.style.cursor = 'pointer';
-            iconSpan.title = "Copy Value";
-            
-            iconSpan.onclick = (e) => {
-                e.preventDefault(); e.stopPropagation();
-                let def = fieldDef || { fieldname: fName, fieldtype: fType || 'Data', label: fName };
-                this.handleFieldAction(def, control); 
-            };
-
             badge.appendChild(textSpan);
-            badge.appendChild(iconSpan);
-            
-            target.appendChild(badge);
+
+            if (fType !== 'Button') {
+                const iconSpan = document.createElement('span');
+                iconSpan.innerHTML = '📋';
+                iconSpan.style.cursor = 'pointer';
+                iconSpan.style.flexShrink = '0';
+                iconSpan.title = "Copy Value";
+                iconSpan.onclick = (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    let def = fieldDef || { fieldname: fName, fieldtype: fType || 'Data', label: fName };
+                    this.handleFieldAction(def, control); 
+                };
+                badge.appendChild(iconSpan);
+            }
+
+            // ATTACHMENT LOGIC
+            if (fieldDef?.fieldtype === 'Button') {
+                const btn = control.querySelector('button');
+                if (btn) {
+                    if (btn.nextSibling) btn.parentNode.insertBefore(badge, btn.nextSibling);
+                    else btn.parentNode.appendChild(badge);
+                    return; 
+                }
+            }
+
+            let target = control.querySelector('.control-label');
+            if(!target) target = control.querySelector('label'); 
+            if(!target && control.closest('.grid-row-open')) {
+                 target = control.closest('.form-group')?.querySelector('.control-label');
+            }
+
+            if(target && !target.querySelector('.frappe-pilot-badge')) {
+                badge.style.marginLeft = '8px';
+                target.appendChild(badge);
+            }
         },
 
         // --- FIELD ACTION LOGIC ---
@@ -248,7 +330,6 @@
             let val = null;
             let type = 'value';
 
-            // 1. Table Field (Copy Selected Rows)
             if (fieldDef.fieldtype === 'Table') {
                 if (context.fields_dict[fieldDef.fieldname]?.grid) {
                     val = context.fields_dict[fieldDef.fieldname].grid.get_selected_children();
@@ -256,29 +337,21 @@
                     type = 'rows';
                 }
             } 
-            // 2. Single Value Field
             else {
-                // Is this inside a Child Table Row?
                 const gridRow = $(control).closest('.grid-row');
-                
                 if (gridRow.length) {
-                    // Child Table Cell Logic
                     const docName = gridRow.attr('data-name');
                     const cdt = gridRow.attr('data-doctype');
-                    
                     if (docName && cdt) {
-                        // Priority 1: Check Local State (Unsaved Changes)
                         if (locals[cdt] && locals[cdt][docName]) {
                             val = locals[cdt][docName][fieldDef.fieldname];
                         } 
-                        // Priority 2: Frappe Model Get (Saved Data)
                         if (val === undefined || val === null) {
                             val = frappe.model.get_value(cdt, docName, fieldDef.fieldname);
                         }
                     } 
                 } 
                 else {
-                    // Standard Form Field Logic
                     if (context.doc && context.doc[fieldDef.fieldname] !== undefined) {
                         val = context.doc[fieldDef.fieldname];
                     } else if (typeof context.get_value === 'function') {
@@ -320,7 +393,13 @@
             frappe.show_alert('🪄 Magic Filler...', 1);
             let context = window.cur_dialog && window.cur_dialog.wrapper.is(':visible') ? window.cur_dialog : window.cur_frm;
             if(!context) { frappe.msgprint("No active form."); return; }
-            let fields = context.fields || context.meta.fields;
+            
+            let fields = [];
+            if (context.fields) {
+                fields = context.fields.map(f => f.df || f);
+            } else if (context.meta && context.meta.fields) {
+                fields = context.meta.fields;
+            }
 
             let isIndividual = false;
             try { if (context.doc && (context.doc.customer_type === 'Individual' || ['Lead','Patient','User'].includes(context.doctype))) isIndividual = true; } catch(e) {}
@@ -343,7 +422,7 @@
             let count = 0;
             for (let field of fields) {
                 if (!field || field.hidden || field.read_only || !field.fieldname) continue;
-                if (['Section Break', 'Column Break', 'HTML', 'Tab Break'].includes(field.fieldtype)) continue;
+                if (['Section Break', 'Column Break', 'HTML', 'Tab Break', 'Button'].includes(field.fieldtype)) continue;
 
                 const fname = field.fieldname.toLowerCase();
                 const isMandatory = field.reqd === 1;
@@ -363,8 +442,12 @@
                 else if (fname.includes('city')) val = MOCK.cities[Math.floor(Math.random()*MOCK.cities.length)];
                 else if (field.fieldtype === 'Date') val = frappe.datetime.get_today();
                 else if (field.fieldtype === 'Select' && field.options) {
-                     let opts = typeof field.options === 'string' ? field.options.split('\n') : field.options;
-                     opts = opts.filter(o => o && o.trim() !== ''); if (opts.length > 0) val = opts[Math.floor(Math.random()*opts.length)];
+                     let opts = [];
+                     if (Array.isArray(field.options)) opts = field.options;
+                     else opts = field.options.split('\n');
+                     
+                     opts = opts.filter(o => o && (typeof o === 'string' ? o.trim() !== '' : true)); 
+                     if (opts.length > 0) val = opts[Math.floor(Math.random()*opts.length)];
                 }
                 else if (field.fieldtype === 'Link') {
                      if (!fname.includes('type') && !fname.includes('group')) {
@@ -391,6 +474,7 @@
             }
             const process = (field) => {
                 if (!field || !field.df) return;
+                
                 if (enable) {
                     if (field.df.hidden) {
                         field.df.hidden = 0; field.__fp_was_hidden = true; field.refresh();
@@ -505,14 +589,50 @@
 
         getAvailableFields: function() {
              let fields = [], context = null, doctypeName = "Data";
-             if (window.cur_dialog && window.cur_dialog.wrapper.is(':visible')) { context = window.cur_dialog; fields = window.cur_dialog.fields; doctypeName = "Dialog"; } else if (window.cur_frm) { context = window.cur_frm; fields = window.cur_frm.meta.fields; doctypeName = window.cur_frm.doctype; }
+             
+             if (window.cur_dialog && window.cur_dialog.wrapper.is(':visible')) { 
+                 context = window.cur_dialog; 
+                 // FIX: Normalize
+                 fields = window.cur_dialog.fields.map(f => f.df || f);
+                 doctypeName = "Dialog"; 
+             } else if (window.cur_frm) { 
+                 context = window.cur_frm; 
+                 fields = window.cur_frm.meta.fields; 
+                 doctypeName = window.cur_frm.doctype; 
+             }
+             
              if (!fields) return { fields: [], doctype: doctypeName };
+
+             const GARBAGE_REGEX = /^(sec_break|col_break|tab_break|column_break|section_break|spacer_|header_|__)/i;
+             const IGNORED_TYPES = [
+                 'Section Break', 'Column Break', 'Tab Break', 'HTML', 
+                 'Spacer', 'Fold', 'Heading', 'Image'
+             ];
+
              const mapped = fields.map(f => {
-                if (['Column Break', 'Section Break'].includes(f.fieldtype)) return null;
+                if (IGNORED_TYPES.includes(f.fieldtype)) return null;
+                if (!f.fieldname) return null; 
+                if (GARBAGE_REGEX.test(f.fieldname)) return null;
+
                 let val = '';
-                try { if (context.get_value) val = context.get_value(f.fieldname); } catch(e) {}
-                return { label: f.label||f.fieldname, fieldname: f.fieldname, fieldtype: f.fieldtype, options: f.options||'', value: val };
+                try { 
+                    if (context.get_value) val = context.get_value(f.fieldname); 
+                } catch(e) {}
+
+                // FIX: Handle Array Options
+                let optStr = '';
+                if (Array.isArray(f.options)) optStr = f.options.map(o => (typeof o === 'object' && o ? (o.label||o.value) : o)).join(',');
+                else optStr = f.options || '';
+
+                return { 
+                    label: f.label || f.fieldname, 
+                    fieldname: f.fieldname, 
+                    fieldtype: f.fieldtype, 
+                    options: optStr, 
+                    value: val 
+                };
              }).filter(f => f !== null);
+
              return { fields: mapped, doctype: doctypeName };
         },
 
