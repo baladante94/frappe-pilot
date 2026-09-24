@@ -3,7 +3,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const xrayToggle = document.getElementById('xray');
     const magicToggle = document.getElementById('magic');
     const hiddenToggle = document.getElementById('hidden_fields');
-    const teleportToggle = document.getElementById('teleport'); // NEW
+    const teleportToggle = document.getElementById('teleport');
+    const linkPeekToggle = document.getElementById('link_peek');
+    const schemaExportToggle = document.getElementById('schema_export');
+    const permInspectorToggle = document.getElementById('perm_inspector');
     const exportHeader = document.getElementById('toggle-export');
     const exportPanel = document.getElementById('export-panel');
     const btnScan = document.getElementById('btn-scan');
@@ -11,15 +14,81 @@ document.addEventListener('DOMContentLoaded', () => {
     const previewList = document.getElementById('field-list-preview');
     const statusMsg = document.getElementById('status-msg');
 
+    // --- AI SETTINGS ---
+    const aiTrigger   = document.getElementById('toggle-ai');
+    const aiPanel     = document.getElementById('ai-panel');
+    const aiArrow     = document.getElementById('ai-arrow');
+    const apiKeyInput = document.getElementById('api-key-input');
+    const btnSaveKey  = document.getElementById('btn-save-key');
+    const keyStatus   = document.getElementById('key-status');
+    const toggleVis   = document.getElementById('toggle-key-vis');
+    const apiKeyHint  = document.getElementById('api-key-hint');
+
+    const PROVIDER_HINTS = {
+        gemini: 'Free key at aistudio.google.com',
+        claude: 'Key at console.anthropic.com',
+        openai: 'Key at platform.openai.com'
+    };
+
+    let selectedProvider = 'gemini';
+
+    function setActiveTab(provider) {
+        selectedProvider = provider;
+        document.querySelectorAll('.provider-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.provider === provider);
+        });
+        apiKeyHint.textContent = PROVIDER_HINTS[provider] || '';
+    }
+
+    document.querySelectorAll('.provider-tab').forEach(tab => {
+        tab.addEventListener('click', () => setActiveTab(tab.dataset.provider));
+    });
+
+    toggleVis.addEventListener('click', () => {
+        apiKeyInput.type = apiKeyInput.type === 'password' ? 'text' : 'password';
+        toggleVis.textContent = apiKeyInput.type === 'password' ? '👁' : '🙈';
+    });
+
+    aiTrigger.addEventListener('click', () => {
+        const open = aiPanel.style.display === 'block';
+        aiPanel.style.display = open ? 'none' : 'block';
+        aiArrow.style.transform = open ? '' : 'rotate(180deg)';
+    });
+
+    btnSaveKey.addEventListener('click', () => {
+        const key = apiKeyInput.value.trim();
+        if (!key) { keyStatus.textContent = '⚠️ Key is empty'; keyStatus.style.color = '#e74c3c'; return; }
+        chrome.storage.local.set({ apiKey: key, aiProvider: selectedProvider }, () => {
+            keyStatus.style.color = '#21a366';
+            keyStatus.textContent = `✓ Saved (${selectedProvider})`;
+            setTimeout(() => keyStatus.textContent = '', 3000);
+        });
+    });
+
+    // Load saved AI settings
+    chrome.storage.local.get(['apiKey', 'aiProvider'], (res) => {
+        if (res.aiProvider) setActiveTab(res.aiProvider);
+        else setActiveTab('gemini');
+        if (res.apiKey) {
+            apiKeyInput.value = res.apiKey;
+            keyStatus.style.color = '#21a366';
+            keyStatus.textContent = `✓ Key saved (${res.aiProvider || 'gemini'})`;
+        }
+    });
+
     let currentFields = [];
     let currentDocType = "frappe_data";
+    let currentDocName = "";
 
     // --- 1. SYNC STATE ---
-    chrome.storage.local.get(['xray', 'magic', 'hidden_fields', 'teleport'], (res) => {
+    chrome.storage.local.get(['xray', 'magic', 'hidden_fields', 'teleport', 'link_peek', 'schema_export', 'perm_inspector'], (res) => {
         xrayToggle.checked = res.xray || false;
         magicToggle.checked = res.magic || false;
         hiddenToggle.checked = res.hidden_fields || false;
-        teleportToggle.checked = res.teleport || false; // NEW
+        teleportToggle.checked = res.teleport || false;
+        linkPeekToggle.checked = res.link_peek || false;
+        schemaExportToggle.checked = res.schema_export || false;
+        permInspectorToggle.checked = res.perm_inspector || false;
     });
 
     const updateState = () => {
@@ -27,10 +96,12 @@ document.addEventListener('DOMContentLoaded', () => {
             xray: xrayToggle.checked,
             magic: magicToggle.checked,
             hidden_fields: hiddenToggle.checked,
-            teleport: teleportToggle.checked // NEW
+            teleport: teleportToggle.checked,
+            link_peek: linkPeekToggle.checked,
+            schema_export: schemaExportToggle.checked,
+            perm_inspector: permInspectorToggle.checked
         };
         chrome.storage.local.set(config);
-        
         chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
             if(tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: "UPDATE_CONFIG", config: config });
         });
@@ -40,7 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
     xrayToggle.addEventListener('change', updateState);
     magicToggle.addEventListener('change', updateState);
     hiddenToggle.addEventListener('change', updateState);
-    teleportToggle.addEventListener('change', updateState); // NEW
+    teleportToggle.addEventListener('change', updateState);
+    linkPeekToggle.addEventListener('change', updateState);
+    schemaExportToggle.addEventListener('change', updateState);
+    permInspectorToggle.addEventListener('change', updateState);
 
     // --- 2. EXPORTER UI ---
     exportHeader.addEventListener('click', () => {
@@ -58,20 +132,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 3. SCAN LOGIC ---
+    let scanTimeout = null;
+
+    function resetScanBtn(msg) {
+        clearTimeout(scanTimeout);
+        btnScan.innerText = '🔍 Scan Fields';
+        btnScan.disabled = false;
+        if (msg) showStatus(msg);
+    }
+
     btnScan.addEventListener('click', () => {
         btnScan.innerText = '⏳ Scanning...';
         btnScan.disabled = true;
-        
+
+        // Reset automatically if no response arrives within 6 seconds
+        clearTimeout(scanTimeout);
+        scanTimeout = setTimeout(() => resetScanBtn('⚠️ Timed out — refresh & retry'), 6000);
+
         chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-            if(tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: "GET_FIELDS" });
+            if (!tabs[0]) { resetScanBtn('⚠️ No active tab found'); return; }
+            chrome.tabs.sendMessage(tabs[0].id, { action: "GET_FIELDS" }, () => {
+                // sendMessage callback fires immediately on error (no listener)
+                if (chrome.runtime.lastError) resetScanBtn('⚠️ Page not ready — refresh & retry');
+            });
         });
     });
 
     chrome.runtime.onMessage.addListener((msg) => {
         if (msg.action === "FIELDS_DATA") {
+            clearTimeout(scanTimeout);
             currentFields = msg.data.fields || [];
             currentDocType = msg.data.doctype || "frappe_data";
-            
+            currentDocName = msg.data.docname || "";
+
             renderPreview();
             btnScan.innerText = '🔄 Re-Scan Fields';
             btnScan.disabled = false;
@@ -150,15 +243,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if(cols.fieldname) row.push(`"${(f.fieldname||'').replace(/"/g,'""')}"`);
             if(cols.fieldtype) row.push(`"${(f.fieldtype||'').replace(/"/g,'""')}"`);
             if(cols.options) row.push(`"${(f.options||'').replace(/"/g,'""')}"`);
-            if(cols.value) row.push(`"${(String(f.value||'')).replace(/"/g,'""')}"`);
+            if(cols.value) row.push(`"${(String(f.value != null ? f.value : '')).replace(/"/g,'""')}"`);
             csv += row.join(",") + "\n";
         });
 
         const link = document.createElement("a");
         link.href = encodeURI(csv);
-        
-        const cleanName = currentDocType.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        link.download = `${cleanName}_fields.csv`;
+
+        const date = new Date().toISOString().slice(0, 10);
+        const cleanType = currentDocType.replace(/\s+/g, '-');
+        const cleanDoc  = currentDocName ? currentDocName.replace(/[^a-z0-9-]/gi, '-') : '';
+        link.download = cleanDoc
+            ? `${cleanType}_${cleanDoc}_${date}.csv`
+            : `${cleanType}_${date}.csv`;
         
         document.body.appendChild(link);
         link.click();

@@ -5,219 +5,486 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frappe Pilot</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
         :root {
-            --primary: #2490ef;
-            --primary-hover: #177ccf;
-            --bg-app: #f4f6f8;
-            --bg-card: #ffffff;
-            --text-main: #1f272e;
-            --text-sub: #68768a;
-            --border: #eaeff5;
-            --shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-            --radius: 16px;
-            --radius-sm: 10px;
+            --bg: #090c11;
+            --bg-panel: #10151c;
+            --bg-panel-raised: #141b24;
+            --bg-inset: #0c1015;
+            --line: rgba(56, 217, 197, 0.14);
+            --line-strong: rgba(56, 217, 197, 0.38);
+            --teal: #35e0c4;
+            --teal-dim: #1b6f63;
+            --teal-glow: rgba(53, 224, 196, 0.55);
+            --amber: #f5a623;
+            --amber-glow: rgba(245, 166, 35, 0.45);
+            --red: #ff5d5d;
+            --text-hi: #e9f3f1;
+            --text-mid: #8fa3a8;
+            --text-lo: #4d6067;
+            --radius: 9px;
+            --mono: 'JetBrains Mono', ui-monospace, monospace;
+            --disp: 'Chakra Petch', sans-serif;
         }
 
+        * { box-sizing: border-box; }
+
         body {
-            width: 350px;
+            width: 360px;
             margin: 0;
-            background-color: var(--bg-app);
-            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-            color: var(--text-main);
+            background: var(--bg);
+            font-family: var(--mono);
+            color: var(--text-hi);
             -webkit-font-smoothing: antialiased;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* --- Ambient backdrop: grid + glow --- */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(56,217,197,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56,217,197,0.05) 1px, transparent 1px);
+            background-size: 22px 22px;
+            mask-image: radial-gradient(ellipse 100% 60% at 50% 0%, black 40%, transparent 100%);
+            z-index: 0;
+        }
+        body::after {
+            content: "";
+            position: fixed;
+            top: -120px; left: 50%;
+            width: 420px; height: 260px;
+            transform: translateX(-50%);
+            background: radial-gradient(ellipse at center, rgba(53,224,196,0.16), transparent 70%);
+            pointer-events: none;
+            z-index: 0;
         }
 
         /* --- Header --- */
         .header {
-            padding: 18px 24px;
-            background: var(--bg-card);
+            position: relative;
+            z-index: 1;
+            padding: 18px 20px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 1px 0 var(--border);
-            z-index: 10;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand { display: flex; align-items: center; gap: 11px; }
+
+        .mark { width: 34px; height: 34px; flex-shrink: 0; filter: drop-shadow(0 0 6px var(--teal-glow)); }
+        .mark .ring { animation: spin 16s linear infinite; transform-origin: 50% 50%; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .brand-text h1 {
+            margin: 0;
+            font-family: var(--disp);
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-hi);
+        }
+        .brand-text .sub {
+            font-size: 9px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--teal);
+            opacity: 0.75;
+            margin-top: 2px;
+        }
+
+        .version-badge {
+            display: flex; align-items: center; gap: 6px;
+            font-family: var(--mono); font-size: 10px; font-weight: 500;
+            color: var(--text-mid);
+            padding: 4px 9px;
+            border-radius: 20px;
+            border: 1px solid var(--line);
+            background: var(--bg-inset);
+        }
+        .version-badge .dot {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: var(--teal);
+            box-shadow: 0 0 6px var(--teal-glow);
+            animation: pulse-dot 2.2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+        /* --- Tab bar --- */
+        .tabbar {
+            position: relative; z-index: 1;
+            display: flex; border-bottom: 1px solid var(--line);
+            padding: 0 14px;
+        }
+        .tab-btn {
+            flex: 1; background: none; border: none; cursor: pointer;
+            font-family: var(--disp); font-size: 10.5px; font-weight: 600;
+            letter-spacing: 1.6px; text-transform: uppercase;
+            color: var(--text-lo); padding: 11px 4px 10px;
+            position: relative; transition: color 0.18s;
+        }
+        .tab-btn:hover { color: var(--text-mid); }
+        .tab-btn::after {
+            content: ""; position: absolute; left: 10%; right: 10%; bottom: -1px; height: 2px;
+            background: var(--teal); transform: scaleX(0); transition: transform 0.2s ease;
+            box-shadow: 0 0 8px var(--teal-glow);
+        }
+        .tab-btn.active { color: var(--teal); }
+        .tab-btn.active::after { transform: scaleX(1); }
+
+        .tab-panel { animation: reveal 0.18s ease; }
+
+        /* --- Content --- */
+        .content { position: relative; z-index: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+        .panel-label {
+            font-family: var(--disp);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-lo);
+            padding: 0 2px 2px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .panel-label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+        /* --- Card / instrument panel --- */
+        .card {
+            background: linear-gradient(180deg, var(--bg-panel-raised), var(--bg-panel));
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
             position: relative;
         }
-        
-        .brand { display: flex; align-items: center; gap: 10px; }
-        
-        .brand-icon {
-            font-size: 20px; background: #eaf5ff; width: 36px; height: 36px;
-            display: flex; align-items: center; justify-content: center; border-radius: 12px;
+        .card::before, .card::after {
+            content: ""; position: absolute; width: 8px; height: 8px;
+            border-color: var(--line-strong); border-style: solid; opacity: 0.9;
         }
-
-        .brand-text h1 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
-        
-        .version-badge {
-            font-size: 10px; background: var(--bg-app); color: var(--text-sub);
-            padding: 2px 6px; border-radius: 6px; font-weight: 600; border: 1px solid var(--border);
-        }
-
-        /* --- Content Container --- */
-        .content { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-
-        /* --- Cards --- */
-        .card {
-            background: var(--bg-card); border-radius: var(--radius); padding: 4px;
-            box-shadow: var(--shadow); border: 1px solid white;
-        }
+        .card::before { top: -1px; left: -1px; border-width: 1px 0 0 1px; border-top-left-radius: 3px; }
+        .card::after  { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; border-bottom-right-radius: 3px; }
 
         .control-item {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 16px; border-bottom: 1px solid var(--border);
+            padding: 11px 14px; border-bottom: 1px solid rgba(56,217,197,0.08);
+            transition: background 0.15s;
         }
         .control-item:last-child { border-bottom: none; }
+        .control-item:hover { background: rgba(56,217,197,0.035); }
 
-        .control-info { display: flex; flex-direction: column; gap: 2px; }
-        .label { font-size: 13px; font-weight: 600; }
+        .control-info { display: flex; align-items: center; gap: 9px; }
+
+        .led {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--bg);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+            flex-shrink: 0;
+            transition: all 0.25s ease;
+        }
+        .control-item:has(input:checked) .led {
+            background: var(--teal);
+            box-shadow: 0 0 8px var(--teal-glow), 0 0 2px var(--teal-glow);
+        }
+
+        .control-text { display: flex; flex-direction: column; gap: 3px; }
+        .label {
+            font-size: 12.5px; font-weight: 500; color: var(--text-hi);
+            letter-spacing: 0.2px;
+        }
 
         .shortcut {
-            font-size: 10px; color: var(--text-sub); background: var(--bg-app);
-            padding: 2px 6px; border-radius: 4px; display: inline-block;
-            font-family: monospace; border: 1px solid #e0e5ea;
+            font-family: var(--mono); font-size: 9.5px; color: var(--teal);
+            background: rgba(56,217,197,0.08);
+            padding: 2px 6px; border-radius: 4px;
+            border: 1px solid var(--line);
+            letter-spacing: 0.5px;
         }
-        
         .debug-badge {
-            font-size: 9px; color: var(--primary); background: #eaf5ff;
-            padding: 2px 6px; border-radius: 4px; display: inline-block;
-            font-weight: 600; text-transform: uppercase;
+            font-family: var(--mono); font-size: 9px; font-weight: 600; color: var(--amber);
+            background: rgba(245,166,35,0.09);
+            padding: 2px 6px; border-radius: 4px;
+            border: 1px solid rgba(245,166,35,0.3);
+            text-transform: uppercase; letter-spacing: 0.8px;
         }
 
-        /* --- Switch Toggle --- */
-        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        /* --- Switch --- */
+        .switch { position: relative; display: inline-block; width: 38px; height: 20px; flex-shrink: 0; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider {
-            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #e2e8f0; transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
-            border-radius: 34px;
+            position: absolute; cursor: pointer; inset: 0;
+            background: var(--bg-inset);
+            border: 1px solid var(--line);
+            transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+            border-radius: 4px;
         }
         .slider:before {
-            position: absolute; content: ""; height: 18px; width: 18px; left: 2px; bottom: 2px;
-            background-color: white; transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
-            border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: absolute; content: ""; height: 12px; width: 12px; left: 3px; top: 3px;
+            background: var(--text-lo);
+            transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+            border-radius: 2px;
         }
-        input:checked + .slider { background-color: var(--primary); }
-        input:checked + .slider:before { transform: translateX(18px); }
-
-        /* --- Exporter Section --- */
-        .export-card {
-            background: var(--bg-card); border-radius: var(--radius);
-            box-shadow: var(--shadow); overflow: hidden; transition: all 0.3s ease;
+        input:checked + .slider { border-color: var(--line-strong); box-shadow: 0 0 10px rgba(53,224,196,0.25) inset; }
+        input:checked + .slider:before {
+            transform: translateX(17px);
+            background: var(--teal);
+            box-shadow: 0 0 8px var(--teal-glow);
         }
 
-        .export-trigger {
-            padding: 14px 20px; display: flex; align-items: center; justify-content: space-between;
-            cursor: pointer; background: white; user-select: none;
+        /* --- Collapsible panels (AI / Export) --- */
+        .drop-card { background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+        .drop-trigger {
+            padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; user-select: none; transition: background 0.15s;
         }
-        .export-trigger:hover { background: #fafbff; }
-        .export-trigger span { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-
-        .arrow { transition: transform 0.3s ease; font-size: 10px; color: var(--text-sub); }
-        .export-trigger.expanded .arrow { transform: rotate(180deg); }
-
-        .export-content {
-            display: none; padding: 0 16px 16px 16px; border-top: 1px solid var(--border); background: #fafbff;
+        .drop-trigger:hover { background: rgba(56,217,197,0.04); }
+        .drop-trigger span.tt {
+            font-family: var(--disp); font-size: 11.5px; font-weight: 600;
+            letter-spacing: 1px; text-transform: uppercase;
+            display: flex; align-items: center; gap: 8px; color: var(--text-hi);
         }
+        .drop-trigger .ico { color: var(--teal); font-size: 13px; }
+        .arrow { color: var(--text-lo); font-size: 9px; transition: transform 0.25s ease; }
+        .drop-trigger.expanded .arrow { transform: rotate(180deg); color: var(--teal); }
+
+        .drop-content { padding: 4px 14px 14px; border-top: 1px solid var(--line); }
+        .drop-content[style*="block"] { animation: reveal 0.22s ease; }
+        @keyframes reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
         .section-title {
-            font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-            color: var(--text-sub); font-weight: 700; margin: 12px 0 8px 0;
+            font-family: var(--disp);
+            font-size: 9.5px; text-transform: uppercase; letter-spacing: 1.6px;
+            color: var(--text-lo); font-weight: 600; margin: 12px 0 7px;
         }
 
-        .col-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-
+        .col-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-bottom: 12px; }
         .pill-checkbox {
-            display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-main);
-            cursor: pointer; background: white; padding: 6px 8px; border-radius: 6px;
-            border: 1px solid #e0e5ea; transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--text-mid);
+            cursor: pointer; background: var(--bg-inset); padding: 6px 7px; border-radius: 5px;
+            border: 1px solid var(--line); transition: all 0.15s;
         }
-        .pill-checkbox:hover { border-color: var(--primary); }
-        .pill-checkbox input { margin: 0; accent-color: var(--primary); }
+        .pill-checkbox:hover { border-color: var(--line-strong); color: var(--text-hi); }
+        .pill-checkbox input { margin: 0; accent-color: var(--teal); }
 
         .btn {
-            width: 100%; padding: 10px; border: none; border-radius: var(--radius-sm);
-            font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
-            display: flex; align-items: center; justify-content: center; gap: 6px;
+            width: 100%; padding: 10px; border: none; font-family: var(--mono);
+            font-size: 11px; font-weight: 600; cursor: pointer; letter-spacing: 0.5px;
+            display: flex; align-items: center; justify-content: center; gap: 7px;
+            clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+            transition: all 0.18s ease; text-transform: uppercase;
         }
-        .btn-secondary { background: white; border: 1px solid #d1d8dd; color: var(--text-main); margin-bottom: 10px; }
-        .btn-secondary:hover { background: #f1f3f5; transform: translateY(-1px); }
-        
-        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 6px rgba(36, 144, 239, 0.2); }
-        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .btn-secondary { background: var(--bg-inset); border: 1px solid var(--line); color: var(--text-mid); margin-bottom: 9px; }
+        .btn-secondary:hover { border-color: var(--line-strong); color: var(--text-hi); background: rgba(56,217,197,0.05); }
+
+        .btn-primary { background: var(--teal-dim); color: #04120f; background: linear-gradient(180deg, var(--teal), #1fb8a1); }
+        .btn-primary:hover { box-shadow: 0 0 16px var(--teal-glow); transform: translateY(-1px); }
 
         #field-list-preview {
-            max-height: 180px; overflow-y: auto; background: white; border: 1px solid var(--border);
-            border-radius: 8px; margin-bottom: 12px; display: none;
+            max-height: 170px; overflow-y: auto; background: var(--bg-inset); border: 1px solid var(--line);
+            border-radius: 6px; margin-bottom: 12px; display: none;
         }
-        #field-list-preview::-webkit-scrollbar { width: 6px; }
-        #field-list-preview::-webkit-scrollbar-thumb { background-color: #d1d8dd; border-radius: 10px; }
+        #field-list-preview::-webkit-scrollbar { width: 5px; }
+        #field-list-preview::-webkit-scrollbar-thumb { background: var(--teal-dim); border-radius: 10px; }
 
         .list-header {
-            padding: 8px 12px; background: #f8f9fa; border-bottom: 1px solid var(--border);
-            font-size: 11px; font-weight: 600; position: sticky; top: 0; display: flex; align-items: center; gap: 8px;
+            padding: 8px 10px; background: rgba(56,217,197,0.05); border-bottom: 1px solid var(--line);
+            font-size: 10px; font-weight: 600; color: var(--text-mid); position: sticky; top: 0;
+            display: flex; align-items: center; gap: 7px; text-transform: uppercase; letter-spacing: 0.5px;
         }
-
         .list-item {
-            padding: 8px 12px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 10px; font-size: 12px;
+            padding: 7px 10px; border-bottom: 1px solid rgba(56,217,197,0.06);
+            display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-mid);
         }
         .list-item:last-child { border-bottom: none; }
-        .list-item label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; cursor: pointer; }
+        .list-item label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; cursor: pointer; color: var(--text-hi); }
+        .list-item input { accent-color: var(--teal); }
 
-        .status-bar { text-align: center; font-size: 11px; color: var(--text-sub); padding: 10px; background: transparent; }
+        /* --- AI panel --- */
+        .provider-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+        .provider-tab {
+            flex: 1; padding: 7px 4px; font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+            border: 1px solid var(--line); border-radius: 5px; background: var(--bg-inset);
+            cursor: pointer; text-align: center; color: var(--text-lo); transition: all 0.18s;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .provider-tab:hover { color: var(--text-mid); }
+        .provider-tab.active { border-color: var(--line-strong); background: rgba(56,217,197,0.09); color: var(--teal); box-shadow: 0 0 10px rgba(53,224,196,0.15) inset; }
+
+        .api-key-wrap { position: relative; }
+        .api-key-input {
+            width: 100%; padding: 9px 36px 9px 10px; font-size: 11.5px; font-family: var(--mono);
+            border: 1px solid var(--line); border-radius: 5px;
+            background: var(--bg-inset); color: var(--text-hi); box-sizing: border-box;
+            outline: none; transition: border-color 0.2s;
+        }
+        .api-key-input::placeholder { color: var(--text-lo); }
+        .api-key-input:focus { border-color: var(--line-strong); box-shadow: 0 0 10px rgba(53,224,196,0.12); }
+        .toggle-key-vis {
+            position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+            cursor: pointer; font-size: 13px; user-select: none; color: var(--text-lo); opacity: 0.8;
+        }
+        .api-key-hint { font-size: 10px; color: var(--text-lo); margin-top: 6px; }
+        .btn-save-key {
+            width: 100%; margin-top: 10px; padding: 9px; font-family: var(--mono); font-size: 11px; font-weight: 700;
+            border: none; border-radius: 5px; background: linear-gradient(180deg, var(--teal), #1fb8a1); color: #04120f;
+            cursor: pointer; transition: all 0.18s; text-transform: uppercase; letter-spacing: 0.6px;
+        }
+        .btn-save-key:hover { box-shadow: 0 0 16px var(--teal-glow); }
+        .key-status { font-size: 10px; text-align: center; margin-top: 7px; color: var(--teal); min-height: 14px; font-family: var(--mono); }
+
+        /* --- Status bar --- */
+        .status-bar {
+            position: relative; z-index: 1;
+            display: flex; align-items: center; gap: 8px; justify-content: center;
+            font-family: var(--mono); font-size: 10px; letter-spacing: 0.5px; color: var(--text-lo);
+            padding: 11px; border-top: 1px solid var(--line);
+        }
+        .status-bar::before { content: '>'; color: var(--teal); }
+        .status-bar .blink { width: 5px; height: 5px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 6px var(--teal-glow); animation: pulse-dot 1.6s ease-in-out infinite; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <div class="brand">
-            <div class="brand-icon">🚀</div>
-            <div class="brand-text"><h1>Frappe Pilot</h1></div>
+            <svg class="mark" viewBox="0 0 40 40" fill="none">
+                <circle class="ring" cx="20" cy="20" r="17.5" stroke="#35e0c4" stroke-width="1" stroke-dasharray="3 5" opacity="0.55"/>
+                <circle cx="20" cy="20" r="12.5" stroke="#1b6f63" stroke-width="1"/>
+                <path d="M20 8 L25 20 L20 18 L15 20 Z" fill="#35e0c4"/>
+                <path d="M20 32 L25 20 L20 22 L15 20 Z" fill="#4d6067"/>
+                <circle cx="20" cy="20" r="2" fill="#e9f3f1"/>
+            </svg>
+            <div class="brand-text">
+                <h1>Frappe Pilot</h1>
+                <div class="sub">Toolkit Online</div>
+            </div>
         </div>
-        <div class="version-badge">v28.0</div>
+        <div class="version-badge"><span class="dot"></span>v1.0</div>
+    </div>
+
+    <div class="tabbar">
+        <button class="tab-btn active" data-tab="systems">Systems</button>
+        <button class="tab-btn" data-tab="ai">AI</button>
+        <button class="tab-btn" data-tab="export">Export</button>
     </div>
 
     <div class="content">
+      <div class="tab-panel" data-panel="systems">
         <div class="card">
             <div class="control-item">
                 <div class="control-info">
-                    <span class="label">X-Ray Specs</span>
+                    <span class="led"></span>
+                    <div class="control-text"><span class="label">X-Ray Specs</span></div>
                 </div>
                 <label class="switch"><input type="checkbox" id="xray"><span class="slider"></span></label>
             </div>
 
             <div class="control-item">
                 <div class="control-info">
-                    <span class="label">Magic Filler</span>
-                    <span class="shortcut">Alt/Cmd + Shift + F</span>
+                    <span class="led"></span>
+                    <div class="control-text">
+                        <span class="label">Magic Filler</span>
+                        <span class="shortcut">⌥/⌘ + ⇧ + F</span>
+                    </div>
                 </div>
                 <label class="switch"><input type="checkbox" id="magic"><span class="slider"></span></label>
             </div>
 
             <div class="control-item">
                 <div class="control-info">
-                    <span class="label">Reveal Hidden</span>
-                    <span class="debug-badge">Debug</span>
+                    <span class="led"></span>
+                    <div class="control-text">
+                        <span class="label">Reveal Hidden</span>
+                        <span class="debug-badge">Debug</span>
+                    </div>
                 </div>
                 <label class="switch"><input type="checkbox" id="hidden_fields"><span class="slider"></span></label>
             </div>
 
             <div class="control-item">
                 <div class="control-info">
-                    <span class="label">Data Teleport</span>
-                    <span class="label" style="font-size:10px; font-weight:normal; color:#6c7682">List View Copy/Paste</span>
+                    <span class="led"></span>
+                    <div class="control-text">
+                        <span class="label">Data Teleport</span>
+                        <span class="shortcut">List View Copy/Paste</span>
+                    </div>
                 </div>
                 <label class="switch"><input type="checkbox" id="teleport"><span class="slider"></span></label>
             </div>
-        </div>
 
-        <div class="export-card">
-            <div class="export-trigger" id="toggle-export">
-                <span><span style="font-size:16px">📥</span> Data Exporter</span>
+            <div class="control-item">
+                <div class="control-info">
+                    <span class="led"></span>
+                    <div class="control-text">
+                        <span class="label">Link Peek</span>
+                        <span class="shortcut">Hover Link fields</span>
+                    </div>
+                </div>
+                <label class="switch"><input type="checkbox" id="link_peek"><span class="slider"></span></label>
+            </div>
+
+            <div class="control-item">
+                <div class="control-info">
+                    <span class="led"></span>
+                    <div class="control-text">
+                        <span class="label">Schema Export</span>
+                        <span class="shortcut">Adds 📐 button to form</span>
+                    </div>
+                </div>
+                <label class="switch"><input type="checkbox" id="schema_export"><span class="slider"></span></label>
+            </div>
+
+            <div class="control-item">
+                <div class="control-info">
+                    <span class="led"></span>
+                    <div class="control-text">
+                        <span class="label">Perm Inspector</span>
+                        <span class="debug-badge">Debug</span>
+                    </div>
+                </div>
+                <label class="switch"><input type="checkbox" id="perm_inspector"><span class="slider"></span></label>
+            </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="ai" style="display:none">
+        <div class="drop-card">
+            <div class="drop-trigger" id="toggle-ai">
+                <span class="tt"><span class="ico">◆</span> AI Settings</span>
+                <span class="arrow" id="ai-arrow" style="transform:rotate(180deg)">▼</span>
+            </div>
+            <div class="drop-content" id="ai-panel" style="display:block">
+                <div class="section-title">Provider</div>
+                <div class="provider-tabs">
+                    <div class="provider-tab" data-provider="gemini" id="tab-gemini">Gemini</div>
+                    <div class="provider-tab" data-provider="claude" id="tab-claude">Claude</div>
+                    <div class="provider-tab" data-provider="openai" id="tab-openai">OpenAI</div>
+                </div>
+                <div class="section-title">API Key</div>
+                <div class="api-key-wrap">
+                    <input type="password" id="api-key-input" class="api-key-input" placeholder="Paste your API key here" autocomplete="off" spellcheck="false">
+                    <span class="toggle-key-vis" id="toggle-key-vis" title="Show/Hide">👁</span>
+                </div>
+                <div class="api-key-hint" id="api-key-hint">Get your free key at aistudio.google.com</div>
+                <button class="btn-save-key" id="btn-save-key">Save Key</button>
+                <div class="key-status" id="key-status"></div>
+            </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="export" style="display:none">
+        <div class="drop-card">
+            <div class="drop-trigger expanded" id="toggle-export">
+                <span class="tt"><span class="ico">▤</span> Data Exporter</span>
                 <span class="arrow">▼</span>
             </div>
-            
-            <div class="export-content" id="export-panel">
-                <div class="section-title">Columns to Export</div>
+            <div class="drop-content" id="export-panel" style="display:block">
+                <div class="section-title">Columns to export</div>
                 <div class="col-grid">
                     <label class="pill-checkbox"><input type="checkbox" id="col-label" checked> Label</label>
                     <label class="pill-checkbox"><input type="checkbox" id="col-name" checked> Name</label>
@@ -230,9 +497,11 @@
                 <button id="btn-csv" class="btn btn-primary" style="display: none;"><span>Download CSV</span></button>
             </div>
         </div>
+      </div>
     </div>
 
-    <div class="status-bar" id="status-msg">Ready to assist.</div>
+    <div class="status-bar"><span id="status-msg">Ready to assist.</span><span class="blink"></span></div>
     <script src="popup.js"></script>
+    <script src="tabs.js"></script>
 </body>
 </html>

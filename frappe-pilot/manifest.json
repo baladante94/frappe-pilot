@@ -4,6 +4,9 @@
   "version": "1.0",
   "description": "The regret-proof Frappe toolkit.",
   "permissions": ["activeTab", "scripting", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": { "16": "icon.png", "48": "icon.png", "128": "icon.png" }
