@@ -169,7 +169,7 @@
         },
 
         findFieldDef: function(fieldname, control) {
-            if (window.cur_dialog && window.cur_dialog.wrapper.is(':visible')) {
+            if (window.cur_dialog && $(window.cur_dialog.wrapper).is(':visible')) {
                 if (window.cur_dialog.fields) {
                     const found = window.cur_dialog.fields.find(f => f.fieldname === fieldname);
                     if (found) return found.df || found;
@@ -245,6 +245,25 @@
                 badge.appendChild(iconSpan);
             }
 
+            const makeIcon = (icon, title, onClick) => {
+                const s = document.createElement('span');
+                s.innerHTML = icon;
+                s.style.cssText = 'cursor:pointer;flex-shrink:0';
+                s.title = title;
+                s.onclick = (e) => { e.preventDefault(); e.stopPropagation(); onClick(); };
+                badge.appendChild(s);
+            };
+
+            const ownerDoctype = this.findOwnerDoctype(fieldDef, control);
+            if (ownerDoctype && fName) {
+                makeIcon('⚙️', `Customize "${fName}" in ${ownerDoctype}`, () => this.openCustomize(ownerDoctype, fName));
+            }
+
+            const targetDoctype = typeof fieldDef?.options === 'string' ? fieldDef.options.trim() : '';
+            if (['Link', 'Table', 'Table MultiSelect'].includes(fType) && targetDoctype) {
+                makeIcon('↗️', `Customize ${targetDoctype}`, () => this.openCustomize(targetDoctype));
+            }
+
             if (fieldDef?.fieldtype === 'Button') {
                 const btn = control.querySelector('button');
                 if (btn) {
@@ -263,11 +282,91 @@
             }
         },
 
+        // Doctype that owns the field: the child doctype inside an open grid row, else the form's doctype.
+        // Dialog fields don't belong to a doctype, so they get no customize icon.
+        findOwnerDoctype: function(fieldDef, control) {
+            if (control && control.closest('.modal')) return null;
+            if (!window.cur_frm) return null;
+            const gridRowOpen = control ? control.closest('.grid-row-open') : null;
+            if (gridRowOpen) {
+                const tableField = window.cur_frm.meta.fields.find(tf =>
+                    ['Table', 'Table MultiSelect'].includes(tf.fieldtype) &&
+                    gridRowOpen.closest(`[data-fieldname="${tf.fieldname}"]`));
+                return tableField ? tableField.options : null;
+            }
+            return fieldDef?.parent || window.cur_frm.doctype;
+        },
+
+        // Mirrors Frappe's own "Customize" menu: custom doctypes open in DocType, standard ones in Customize Form.
+        // With a fieldname, it also opens that field's row once the form has loaded.
+        openCustomize: function(doctype, fieldname) {
+            frappe.model.with_doctype(doctype, () => {
+                const meta = frappe.get_meta(doctype);
+                if (!meta) { frappe.show_alert({ message: `DocType not found: ${doctype}`, indicator: 'red' }); return; }
+                if (meta.issingle) { frappe.show_alert({ message: `${doctype} is a Single DocType and can't be customized`, indicator: 'orange' }); return; }
+                const formDoctype = meta.custom ? 'DocType' : 'Customize Form';
+                if (meta.custom) frappe.set_route('Form', 'DocType', doctype);
+                else frappe.set_route('Form', 'Customize Form', { doc_type: doctype });
+                if (fieldname) this.focusCustomizeField(formDoctype, doctype, fieldname);
+            });
+        },
+
+        focusCustomizeField: function(formDoctype, doctype, fieldname) {
+            let tries = 0;
+            const t = setInterval(() => {
+                if (++tries > 40) { clearInterval(t); return; }
+                const frm = window.cur_frm;
+                if (!frm || frm.doctype !== formDoctype) return;
+                const loadedFor = formDoctype === 'DocType' ? frm.doc.name : frm.doc.doc_type;
+                if (loadedFor !== doctype) return;
+
+                // v15+: Customize Form / DocType open on the Form Builder tab, so select the field there.
+                if (frm.get_field('form_builder')) {
+                    const store = frappe.form_builder?.doctype === doctype && frappe.form_builder.store;
+                    const tabs = store?.form?.layout?.tabs;
+                    if (!tabs || !tabs.length) return;
+                    for (const tab of tabs) {
+                        for (const section of tab.sections || []) {
+                            for (const column of section.columns || []) {
+                                const field = (column.fields || []).find(f => f.df.fieldname === fieldname);
+                                if (!field) continue;
+                                clearInterval(t);
+                                store.form.active_tab = tab.df.name;
+                                store.form.selected_field = field.df;
+                                let scrollTries = 0;
+                                const s = setInterval(() => {
+                                    const el = document.querySelector('.form-builder-container .field.selected');
+                                    if (el || ++scrollTries > 12) clearInterval(s);
+                                    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                                }, 250);
+                                return;
+                            }
+                        }
+                    }
+                    return;
+                }
+
+                // v13/v14: no Form Builder, open the row in the classic fields table.
+                const row = (frm.doc.fields || []).find(f => f.fieldname === fieldname);
+                const grid = frm.fields_dict.fields?.grid;
+                if (!row || !grid) return;
+                const pager = grid.grid_pagination;
+                if (pager && pager.page_length) {
+                    const page = Math.ceil(row.idx / pager.page_length);
+                    if (pager.page_index !== page) pager.go_to_page(page);
+                }
+                const gridRow = grid.grid_rows_by_docname?.[row.name];
+                if (!gridRow || !gridRow.row || !document.body.contains(gridRow.row[0])) return;
+                clearInterval(t);
+                gridRow.toggle_view(true);
+            }, 250);
+        },
+
         // ============================================================
         //  FEATURE 2: FIELD CLIPBOARD (Cross-Domain)
         // ============================================================
         handleFieldAction: function(fieldDef, control) {
-            let context = window.cur_dialog && window.cur_dialog.wrapper.is(':visible') ? window.cur_dialog : window.cur_frm;
+            let context = window.cur_dialog && $(window.cur_dialog.wrapper).is(':visible') ? window.cur_dialog : window.cur_frm;
             if(!context) return;
 
             const hasClip = this.fieldClipboard !== null && this.fieldClipboard !== undefined;
@@ -356,7 +455,7 @@
         //  FEATURE 3: MAGIC FILLER (AI-powered)
         // ============================================================
         fillMagicData: async function() {
-            let context = window.cur_dialog && window.cur_dialog.wrapper.is(':visible') ? window.cur_dialog : window.cur_frm;
+            let context = window.cur_dialog && $(window.cur_dialog.wrapper).is(':visible') ? window.cur_dialog : window.cur_frm;
             if (!context) { frappe.msgprint("No active form."); return; }
 
             let allFields = [];
@@ -368,7 +467,7 @@
 
             const fillable = allFields.filter(f =>
                 f && f.fieldname &&
-                !f.hidden && !f.read_only && !f.is_virtual &&
+                !cint(f.hidden) && !cint(f.read_only) && !cint(f.is_virtual) &&
                 !SKIP_TYPES.has(f.fieldtype) &&
                 !SKIP_FIELDS.has(f.fieldname)
             );
@@ -389,7 +488,7 @@
                     fieldname: f.fieldname,
                     fieldtype: f.fieldtype,
                     options:   opts,
-                    reqd:      f.reqd || 0
+                    reqd:      cint(f.reqd)
                 };
             });
 
@@ -416,7 +515,7 @@
                 const val = aiData[field.fieldname];
                 if (val === undefined || val === null || val === '') continue;
                 try {
-                    if (window.cur_dialog && window.cur_dialog.wrapper.is(':visible'))
+                    if (window.cur_dialog && $(window.cur_dialog.wrapper).is(':visible'))
                         window.cur_dialog.set_value(field.fieldname, val);
                     else
                         window.cur_frm.set_value(field.fieldname, val);
@@ -437,7 +536,8 @@
             const process = (field) => {
                 if (!field || !field.df) return;
                 if (enable) {
-                    if (field.df.hidden) {
+                    // cint: other extensions set hidden to the string "0", which is truthy.
+                    if (cint(field.df.hidden)) {
                         field.df.hidden = 0; field.__fp_was_hidden = true; field.refresh();
                         const label = $(field.wrapper).find('.control-label');
                         if (label.length && !label.find('.fp-hidden-tag').length) label.append('<span class="fp-hidden-tag" style="color:#e24c4c; font-size:9px; margin-left:6px; background:#fff0f0; padding:1px 4px; border-radius:3px;">(Hidden)</span>');
@@ -445,11 +545,11 @@
                     }
                 } else if (field.__fp_was_hidden) {
                     field.df.hidden = 1; delete field.__fp_was_hidden; field.refresh();
-                    $(field.wrapper).css('border-left', 'none');
+                    $(field.wrapper).css('border-left', 'none').find('.fp-hidden-tag').remove();
                 }
             };
             if (window.cur_frm && window.cur_frm.fields_dict) $.each(window.cur_frm.fields_dict, (fn, f) => process(f));
-            if (window.cur_dialog && window.cur_dialog.wrapper.is(':visible')) $.each(window.cur_dialog.fields_dict, (fn, f) => process(f));
+            if (window.cur_dialog && $(window.cur_dialog.wrapper).is(':visible')) $.each(window.cur_dialog.fields_dict, (fn, f) => process(f));
         },
 
         // ============================================================
@@ -760,9 +860,9 @@
                     fieldname: f.fieldname || '',
                     fieldtype: f.fieldtype || '',
                     options: f.options || '',
-                    reqd: f.reqd || 0,
-                    hidden: f.hidden || 0,
-                    read_only: f.read_only || 0,
+                    reqd: cint(f.reqd),
+                    hidden: cint(f.hidden),
+                    read_only: cint(f.read_only),
                     depends_on: f.depends_on || '',
                     mandatory_depends_on: f.mandatory_depends_on || '',
                     read_only_depends_on: f.read_only_depends_on || '',
@@ -837,7 +937,7 @@
         getAvailableFields: function() {
              let fields = [], context = null, doctypeName = "Data";
              
-             if (window.cur_dialog && window.cur_dialog.wrapper.is(':visible')) { 
+             if (window.cur_dialog && $(window.cur_dialog.wrapper).is(':visible')) { 
                  context = window.cur_dialog; 
                  fields = window.cur_dialog.fields.map(f => f.df || f);
                  doctypeName = "Dialog"; 

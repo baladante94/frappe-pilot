@@ -11,6 +11,8 @@ Hover over any field to instantly see its internal metadata.
 - Displays **Fieldname**, **Fieldtype**, and **Options** (e.g., `status | Select : Open, Closed`).
 - **Context-Aware:** Works on Forms, Child Tables, and **Pop-up Dialogs**.
 - **Clipboard Action:** One-click to copy the fieldname or value.
+- **⚙️ Quick Customize:** Every field gets a gear that opens Customize Form for its DocType (the child DocType for fields in a table row) with that field already selected. Custom DocTypes open in the DocType form instead.
+- **↗️ Customize Target:** Link, Table, and Table MultiSelect fields also get an arrow that opens Customize Form for the DocType they point to.
 
 ### 2. 📋 Field Clipboard
 Copy a field value, or selected child table rows, and paste them into the same field on another form or another site.
