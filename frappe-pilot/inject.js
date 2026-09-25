@@ -147,7 +147,11 @@
             const GARBAGE_REGEX = /^(sec_break|col_break|tab_break|column_break|section_break|spacer_|header_|__)/i;
             const IGNORED_TYPES = ['Section Break', 'Column Break', 'Tab Break', 'HTML', 'Fold', 'Spacer', 'Heading', 'Image'];
 
+            // Form Builder (Customize Form / DocType) previews fields for drag-and-drop; badges only get in the way there.
+            document.querySelectorAll('.form-builder-container .frappe-pilot-badge').forEach(b => b.remove());
+
             controls.forEach(control => {
+                if (control.closest('.form-builder-container')) return;
                 let fieldname = control.getAttribute('data-fieldname');
                 if (!fieldname || GARBAGE_REGEX.test(fieldname)) return;
                 
@@ -223,7 +227,12 @@
                 if (cleanOpts.length > 25) cleanOpts = cleanOpts.substring(0, 22) + '...';
                 meta += ` : ${cleanOpts}`;
             }
-            textSpan.innerHTML = `<b>${fName}</b> <span style="opacity:0.6">| ${meta}</span>`;
+            const isCustom = cint(fieldDef?.is_custom_field);
+            if (isCustom) {
+                badge.classList.add('fp-custom');
+                badge.title = 'Custom field';
+            }
+            textSpan.innerHTML = `${isCustom ? '★ ' : ''}<b>${fName}</b> <span style="opacity:0.6">| ${meta}</span>`;
             textSpan.onclick = (e) => {
                 e.preventDefault(); e.stopPropagation();
                 const t = document.createElement('textarea'); t.value = fName;
@@ -372,15 +381,18 @@
             const hasClip = this.fieldClipboard !== null && this.fieldClipboard !== undefined;
             let options = [];
 
-            options.push({
-                label: `Copy ${fieldDef.fieldtype === 'Table' ? 'Selected Rows' : 'Value'}`,
-                action: () => this.copyFieldData(fieldDef, context, control)
-            });
+            if (fieldDef.fieldtype === 'Table') {
+                options.push({ label: 'Copy Entire Table', action: () => this.copyFieldData(fieldDef, context, control, true) });
+                options.push({ label: 'Copy Selected Rows', action: () => this.copyFieldData(fieldDef, context, control) });
+            } else {
+                options.push({ label: 'Copy Value', action: () => this.copyFieldData(fieldDef, context, control) });
+            }
 
             if (hasClip) {
                 let clipData = this.fieldClipboard;
                 let typeInfo = clipData.type === 'rows' ? `(${clipData.value.length} rows)` : `(Value)`;
                 options.push({ label: `Paste ${typeInfo}`, action: () => this.pasteFieldData(fieldDef, context, clipData) });
+                options.push({ label: 'Clear Clipboard', action: () => this.clearFieldClipboard() });
             }
 
             let d = new frappe.ui.Dialog({
@@ -396,13 +408,15 @@
             });
         },
 
-        copyFieldData: function(fieldDef, context, control) {
+        copyFieldData: function(fieldDef, context, control, entireTable) {
             let val = null;
             let type = 'value';
             if (fieldDef.fieldtype === 'Table') {
                 if (context.fields_dict[fieldDef.fieldname]?.grid) {
-                    val = context.fields_dict[fieldDef.fieldname].grid.get_selected_children();
-                    if(!val || val.length === 0) throw new Error("Select rows first.");
+                    val = entireTable
+                        ? (context.doc?.[fieldDef.fieldname] || [])
+                        : context.fields_dict[fieldDef.fieldname].grid.get_selected_children();
+                    if(!val || val.length === 0) throw new Error(entireTable ? "Table is empty." : "Select rows first.");
                     type = 'rows';
                 }
             } else {
@@ -428,10 +442,34 @@
             frappe.show_alert(`📋 Copied ${type === 'rows' ? val.length + ' rows' : 'value'}.`);
         },
 
+        // A row is blank when its mandatory and grid-visible fields are all empty (e.g. the row a new form starts with).
+        // Other fields are ignored because Frappe pre-fills things like UOM and cost center from defaults.
+        removeBlankRows: function(context, fieldDef) {
+            const rows = context.doc?.[fieldDef.fieldname];
+            if (!rows || !rows.length || !fieldDef.options) return;
+            const meta = frappe.get_meta(fieldDef.options);
+            if (!meta) return;
+            const valueFields = meta.fields.filter(df => !frappe.model.no_value_type.includes(df.fieldtype));
+            const keyFields = valueFields.filter(df => cint(df.reqd) || cint(df.in_list_view));
+            const checkFields = keyFields.length ? keyFields : valueFields;
+            const isBlank = row => checkFields.every(df => {
+                const v = row[df.fieldname];
+                if (v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length)) return true;
+                if (df.default !== undefined && df.default !== null && String(v) === String(df.default)) return true;
+                return ['Int', 'Float', 'Currency', 'Percent', 'Check'].includes(df.fieldtype) && flt(v) === 0;
+            });
+            const blanks = rows.filter(isBlank);
+            if (!blanks.length) return;
+            blanks.forEach(row => frappe.model.clear_doc(row.doctype, row.name));
+            context.doc[fieldDef.fieldname] = rows.filter(r => !blanks.includes(r));
+            context.doc[fieldDef.fieldname].forEach((r, i) => { r.idx = i + 1; });
+        },
+
         pasteFieldData: function(fieldDef, context, clipData) {
             if (clipData.type === 'rows') {
                 if (fieldDef.fieldtype !== 'Table') { frappe.msgprint("Can only paste rows into a Table."); return; }
                 let rows = clipData.value;
+                this.removeBlankRows(context, fieldDef);
                 rows.forEach(row => {
                     let newRow = frappe.model.copy_doc(row);
                     delete newRow.name; delete newRow.creation; delete newRow.modified; delete newRow.idx; delete newRow.parent;
@@ -445,10 +483,12 @@
                     frappe.show_alert(`📋 Pasted value.`);
                 }
             }
-            
-            // --- NEW: Clear Clipboard After Paste ---
+        },
+
+        clearFieldClipboard: function() {
             this.fieldClipboard = null;
             window.postMessage({ type: "FRAPPE_PILOT_CLEAR_CLIPBOARD" }, "*");
+            frappe.show_alert('📋 Clipboard cleared.');
         },
 
         // ============================================================
@@ -602,36 +642,104 @@
 
         handlePasteData: async function(docs) {
             if (!docs || !docs.length) { frappe.msgprint("Clipboard empty."); return; }
-            if (window.cur_list.doctype !== docs[0].doctype) { frappe.msgprint(`⚠️ Mismatch! Clipboard: ${docs[0].doctype}`); return; }
-            frappe.confirm(`Insert ${docs.length} records?`, async () => {
-                frappe.show_alert('🚀 Processing...');
-                let localCompany = frappe.defaults.get_user_default("Company") || frappe.defaults.get_default("company");
-                let success = 0;
-                for (let doc of docs) {
-                    let newDoc = this.cleanDoc(doc, localCompany);
-                    if (await this.insertWithRetry(newDoc)) success++;
+            const doctype = window.cur_list.doctype;
+            if (doctype !== docs[0].doctype) { frappe.msgprint(`⚠️ Mismatch! Clipboard: ${docs[0].doctype}`); return; }
+
+            const names = docs.map(d => d.name).filter(Boolean);
+            const existing = names.length
+                ? (await frappe.db.get_list(doctype, { filters: { name: ['in', names] }, fields: ['name'], limit: names.length })).map(r => r.name)
+                : [];
+
+            const fields = [{ fieldtype: 'HTML', options: `<p>Paste <b>${docs.length}</b> ${frappe.utils.escape_html(doctype)} record(s) into this site.</p>` }];
+            if (existing.length) {
+                const preview = existing.slice(0, 5).map(n => frappe.utils.escape_html(n)).join(', ') + (existing.length > 5 ? ', …' : '');
+                fields.push({ fieldtype: 'HTML', options: `<p style="color:var(--orange-600)">⚠️ ${existing.length} already exist here: ${preview}</p>` });
+                fields.push({
+                    label: 'For records that already exist', fieldname: 'on_existing', fieldtype: 'Select',
+                    options: ['Skip', 'Update existing', 'Insert as new copy'], default: 'Skip',
+                    description: 'Update overwrites the existing record with the copied values (child tables are replaced).'
+                });
+            }
+
+            const d = new frappe.ui.Dialog({
+                title: '📦 Teleport Paste',
+                fields,
+                primary_action_label: 'Paste',
+                primary_action: async (values) => {
+                    d.hide();
+                    frappe.show_alert('🚀 Processing...');
+                    const onExisting = values.on_existing || 'Skip';
+                    const localCompany = frappe.defaults.get_user_default("Company") || frappe.defaults.get_default("company");
+                    const result = { inserted: 0, updated: 0, skipped: 0 };
+                    for (const doc of docs) {
+                        if (existing.includes(doc.name)) {
+                            if (onExisting === 'Skip') { result.skipped++; continue; }
+                            if (onExisting === 'Update existing') {
+                                if (await this.updateWithRetry(doc, localCompany)) result.updated++;
+                                continue;
+                            }
+                        }
+                        const newDoc = this.cleanDoc(doc, localCompany);
+                        // Frappe only honours a given name for Prompt naming, so keeping it is harmless otherwise.
+                        if (!existing.includes(doc.name)) newDoc.name = doc.name;
+                        if (await this.insertWithRetry(newDoc)) result.inserted++;
+                    }
+                    const parts = [];
+                    if (result.inserted) parts.push(`Inserted ${result.inserted}`);
+                    if (result.updated) parts.push(`Updated ${result.updated}`);
+                    if (result.skipped) parts.push(`Skipped ${result.skipped} existing`);
+                    frappe.msgprint(`✅ ${parts.join(', ') || 'Nothing pasted'}.`);
+                    window.cur_list.refresh();
                 }
-                if (success > 0) { frappe.msgprint(`✅ Inserted ${success}.`); window.cur_list.refresh(); }
             });
+            d.show();
+        },
+
+        updateWithRetry: async function(doc, localCompany) {
+            try {
+                const current = (await frappe.db.get_value(doc.doctype, doc.name, ['modified', 'docstatus', 'creation', 'owner'])).message;
+                const upd = this.cleanDoc(doc, localCompany);
+                // Keep this site's own bookkeeping values; v16 rejects saves that change creation.
+                Object.assign(upd, { name: doc.name, modified: current.modified, docstatus: current.docstatus, creation: current.creation, owner: current.owner });
+                // Child rows must go in as new (no name, __islocal) so Frappe replaces the old rows instead of silently skipping them.
+                Object.keys(upd).forEach(k => {
+                    if (Array.isArray(upd[k])) upd[k].forEach(row => {
+                        if (!row || typeof row !== 'object') return;
+                        ['name', 'parent', 'creation', 'modified', 'modified_by', 'owner'].forEach(f => delete row[f]);
+                        row.__islocal = 1;
+                    });
+                });
+                await this.serverCall('frappe.client.save', { doc: upd });
+                return true;
+            } catch (e) {
+                return await this.showFailure(e, 'Update Failed', () => this.updateWithRetry(doc, localCompany));
+            }
         },
 
         insertWithRetry: async function(doc) {
-            try { await frappe.db.insert(doc); return true; } 
-            catch (e) {
-                let msg = e.message;
-                try { if (e._server_messages) msg = JSON.parse(JSON.parse(e._server_messages)[0]).message; } catch(err) {}
-                return await new Promise((resolve) => {
-                    let d = new frappe.ui.Dialog({
-                        title: 'Insert Failed',
-                        fields: [{ fieldtype: 'HTML', options: `<div style="padding:10px; color:red; font-size:12px">${msg}</div><p>Fix manually & Retry.</p>` }],
-                        primary_action_label: 'Retry',
-                        primary_action: async () => { d.hide(); resolve(await this.insertWithRetry(doc)); },
-                        secondary_action_label: 'Skip',
-                        secondary_action: () => { d.hide(); resolve(false); }
-                    });
-                    d.show();
+            try { await this.serverCall('frappe.client.insert', { doc }); return true; }
+            catch (e) { return await this.showFailure(e, 'Insert Failed', () => this.insertWithRetry(doc)); }
+        },
+
+        // Like frappe.xcall, but rejects with the full response so the server's error message isn't lost.
+        serverCall: function(method, args) {
+            return new Promise((resolve, reject) => frappe.call({ method, args, callback: r => resolve(r.message), error: r => reject(r) }));
+        },
+
+        showFailure: function(e, title, retry) {
+            let msg = (e && e.message) || (e && e.exc_type) || 'Frappe rejected this record. See the message above for details.';
+            try { if (e._server_messages) msg = JSON.parse(JSON.parse(e._server_messages)[0]).message; } catch(err) {}
+            return new Promise((resolve) => {
+                let d = new frappe.ui.Dialog({
+                    title,
+                    fields: [{ fieldtype: 'HTML', options: `<div style="padding:10px; color:red; font-size:12px">${msg}</div><p>Fix manually & Retry.</p>` }],
+                    primary_action_label: 'Retry',
+                    primary_action: async () => { d.hide(); resolve(await retry()); },
+                    secondary_action_label: 'Skip',
+                    secondary_action: () => { d.hide(); resolve(false); }
                 });
-            }
+                d.show();
+            });
         },
 
         cleanDoc: function(doc, localCompany) {

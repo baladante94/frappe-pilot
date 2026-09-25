@@ -13,9 +13,14 @@ Hover over any field to instantly see its internal metadata.
 - **Clipboard Action:** One-click to copy the fieldname or value.
 - **⚙️ Quick Customize:** Every field gets a gear that opens Customize Form for its DocType (the child DocType for fields in a table row) with that field already selected. Custom DocTypes open in the DocType form instead.
 - **↗️ Customize Target:** Link, Table, and Table MultiSelect fields also get an arrow that opens Customize Form for the DocType they point to.
+- **★ Custom Fields:** Custom fields get a purple badge with a star, so a site's customizations stand out.
+- Stays out of the Customize Form / DocType form builder, so dragging fields around isn't cluttered.
 
 ### 2. 📋 Field Clipboard
-Copy a field value, or selected child table rows, and paste them into the same field on another form or another site.
+Copy a field value or child table rows and paste them into the same field on another form or another site.
+- **Copy Entire Table** or **Copy Selected Rows**.
+- Pasting rows removes the empty starter row a new form begins with, then appends. Rows you've filled in are kept.
+- The clipboard stays after pasting, so you can paste into several documents. Use **Clear Clipboard** when done.
 
 ### 3. 🪄 Magic Filler (AI-powered)
 Fill a whole form with realistic test data in one shortcut.
@@ -36,9 +41,11 @@ Move data between instances (e.g., Production to Local) without CSV imports.
 2. Select rows.
 3. Click **Teleport > Copy Selected**.
 4. Go to another instance and click **Teleport > Paste Docs**.
-5. *Pilot handles dependency cleanup (removing `name`, `owner`, etc.) automatically.*
+5. *Pilot handles dependency cleanup (removing `owner`, timestamps, etc.) automatically and maps `company` to the target site's default.*
 
-Also lets you download the selected rows as CSV.
+If some records already exist on the target site, Pilot tells you which ones and lets you **Skip** them, **Update existing** (child tables are replaced), or **Insert as new copy**.
+
+Also lets you download the selected rows as CSV or JSON.
 
 ### 6. 🔗 Link Peek
 Hover over any Link field to preview the linked document without leaving the form.
@@ -74,6 +81,8 @@ See at a glance what the current user can do on the open DocType: Read, Write, C
 4. Turn on Frappe Pilot in **Settings → Extensions**.
 
 ## 🔒 Privacy
+Frappe Pilot only runs on Frappe desk pages (`/app` on v15, `/desk` on v16), never on other websites.
+
 Your AI key is stored locally in the browser and is only sent to the AI provider you choose, and only when you run Magic Filler.
 
 ## 🤝 Contributing

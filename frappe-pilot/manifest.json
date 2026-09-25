@@ -3,7 +3,7 @@
   "name": "Frappe Pilot",
   "version": "1.0",
   "description": "The regret-proof Frappe toolkit.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "storage"],
   "background": {
     "service_worker": "background.js"
   },
@@ -13,7 +13,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*/*"],
+      "matches": ["*://*/app*", "*://*/desk*"],
       "js": ["content.js"],
       "css": ["styles.css"],
       "run_at": "document_end"

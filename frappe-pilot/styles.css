@@ -33,6 +33,17 @@
     z-index: 101;
 }
 
+.frappe-pilot-badge.fp-custom {
+    background-color: #f6f0ff;
+    border-color: #c9b3fc;
+    color: #6b28c0;
+}
+
+.frappe-pilot-badge.fp-custom:hover {
+    background-color: #6b28c0;
+    color: white;
+}
+
 .frappe-pilot-badge .fp-name {
     font-weight: 700;
     margin-right: 4px;
