@@ -29,20 +29,7 @@
         if (window.frappePilot?.config?.perm_inspector) window.frappePilot.refreshPermInspector();
     }, 1500);
 
-    // --- 4. DATA ---
-    const MOCK = {
-        male:    ["Aarav", "Vihaan", "Aditya", "Sai", "Arjun", "Rohan", "Rahul", "Amit", "Vikram", "Karan", "Dev", "Nikhil"],
-        female:  ["Diya", "Saanvi", "Ananya", "Aditi", "Priya", "Neha", "Pooja", "Sneha", "Kavya", "Isha", "Riya", "Nisha"],
-        last:    ["Sharma", "Verma", "Gupta", "Malhotra", "Patel", "Singh", "Kumar", "Reddy", "Joshi", "Nair", "Iyer", "Shah"],
-        biz:     ["Apex", "Global", "Zenith", "Orbit", "Prime", "Elite", "Vertex", "Summit", "Nexus", "Pinnacle", "Vanguard"],
-        biz_suf: ["Technologies", "Logistics", "Solutions", "Enterprises", "Traders", "Consulting", "Industries", "Services"],
-        cities:  ["Mumbai", "Bangalore", "Delhi", "Chennai", "Hyderabad", "Pune", "Ahmedabad", "Kolkata", "Jaipur", "Surat"],
-        states:  ["Maharashtra", "Karnataka", "Tamil Nadu", "Telangana", "Gujarat", "Delhi", "Rajasthan", "West Bengal", "Kerala", "Punjab"],
-        streets: ["MG Road", "Brigade Road", "Linking Road", "Nehru Place", "Connaught Place", "FC Road", "Anna Salai", "Banjara Hills"],
-        lorem:   "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
-    };
-
-    // --- 5. MAIN CONTROLLER ---
+    // --- 4. MAIN CONTROLLER ---
     window.frappePilot = {
         config: { xray: false, magic: false, hidden_fields: false, teleport: true, link_peek: false, schema_export: false, perm_inspector: false },
         fieldClipboard: null,
@@ -532,9 +519,9 @@
                 };
             });
 
-            // Request AI data; wait up to 20 s
+            // Request AI data; wait up to 40 s (the background retries once if the provider is busy)
             const aiData = await new Promise((resolve) => {
-                const tid = setTimeout(() => resolve({ error: 'Request timed out.' }), 20000);
+                const tid = setTimeout(() => resolve({ error: 'Request timed out.' }), 40000);
                 const handler = (event) => {
                     if (event.source !== window || event.data.type !== "FRAPPE_PILOT_AI_FILL_RESPONSE") return;
                     window.removeEventListener("message", handler);
@@ -546,7 +533,7 @@
             });
 
             if (!aiData || aiData.error) {
-                frappe.msgprint(`🪄 Magic Filler: ${aiData?.error || 'Unknown error.'}<br><br>Set your API key in the extension popup under <b>AI Settings</b>.`);
+                frappe.msgprint(`🪄 Magic Filler: ${aiData?.error || 'Unknown error.'}`);
                 return;
             }
 

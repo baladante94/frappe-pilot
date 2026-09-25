@@ -34,7 +34,9 @@ Rules:
 9. Use Indian locale by default (names, cities, phone numbers, currency INR).
 10. Do NOT include markdown fences, comments, or any text outside the JSON object.`;
 
-            try {
+            const fail = (message, status) => { const err = new Error(message); err.status = status; return err; };
+
+            const callAI = async () => {
                 let jsonResponse = "";
 
                 if (provider === 'openai') {
@@ -52,7 +54,7 @@ Rules:
                         })
                     });
                     const data = await response.json();
-                    if (data.error) throw new Error(data.error.message);
+                    if (data.error) throw fail(data.error.message, response.status);
                     jsonResponse = data.choices[0].message.content;
 
                 } else if (provider === 'claude') {
@@ -71,7 +73,7 @@ Rules:
                         })
                     });
                     const data = await response.json();
-                    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+                    if (data.error) throw fail(data.error.message || JSON.stringify(data.error), response.status);
                     jsonResponse = data.content[0].text;
 
                 } else {
@@ -86,13 +88,26 @@ Rules:
                         })
                     });
                     const data = await response.json();
-                    if (data.error) throw new Error(data.error.message);
+                    if (data.error) throw fail(data.error.message, response.status);
                     jsonResponse = data.candidates[0].content.parts[0].text;
                 }
 
-                jsonResponse = jsonResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-                sendResponse({ success: true, data: JSON.parse(jsonResponse) });
+                return jsonResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+            };
 
+            // Overloaded providers (e.g. Gemini "high demand") usually recover within seconds; quota and key errors don't.
+            const isBusy = (e) => [500, 502, 503, 504, 529].includes(e.status) || /high demand|overloaded|unavailable/i.test(e.message || '');
+
+            try {
+                let jsonResponse;
+                try {
+                    jsonResponse = await callAI();
+                } catch (error) {
+                    if (!isBusy(error)) throw error;
+                    await new Promise(r => setTimeout(r, 3000));
+                    jsonResponse = await callAI();
+                }
+                sendResponse({ success: true, data: JSON.parse(jsonResponse) });
             } catch (error) {
                 sendResponse({ error: error.message });
             }
