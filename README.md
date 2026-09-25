@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>The browser toolkit for Frappe & ERPNext developers and consultants.</b><br>
-  Works on Frappe v15 and v16 · Chrome, Edge, Brave, Safari · Free and open source
+  Works on Frappe v15 and v16 · Chrome, Edge and Brave · Free and open source
 </p>
 
 <p align="center">
@@ -92,12 +92,6 @@ See at a glance what the current user can do on the open DocType: Read, Write, C
 3. Enable **Developer Mode** (top right).
 4. Click **Load Unpacked**.
 5. Select the `frappe-pilot` folder.
-
-### Safari (macOS)
-1. Open `frappe-pilot/safari/Frappe Pilot/Frappe Pilot.xcodeproj` in Xcode.
-2. Build and run the app once.
-3. In Safari, enable **Settings → Advanced → Show features for web developers**, then **Develop → Allow Unsigned Extensions**.
-4. Turn on Frappe Pilot in **Settings → Extensions**.
 
 ## 🔒 Privacy
 Frappe Pilot only runs on Frappe desk pages (`/app` on v15, `/desk` on v16), never on other websites. It has no analytics and no servers of its own. Full details: [Privacy Policy](PRIVACY.md).
