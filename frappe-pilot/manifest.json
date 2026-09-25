@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "Frappe Pilot",
   "version": "1.0",
-  "description": "The regret-proof Frappe toolkit.",
+  "description": "Developer toolkit for Frappe & ERPNext v15/v16: X-Ray, AI Magic Filler, Data Teleport, Quick Customize, Link Peek and more.",
+  "icons": { "16": "icon.png", "48": "icon.png", "128": "icon.png" },
   "permissions": ["activeTab", "storage"],
   "background": {
     "service_worker": "background.js"

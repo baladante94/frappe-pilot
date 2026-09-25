@@ -81,7 +81,7 @@ See at a glance what the current user can do on the open DocType: Read, Write, C
 4. Turn on Frappe Pilot in **Settings → Extensions**.
 
 ## 🔒 Privacy
-Frappe Pilot only runs on Frappe desk pages (`/app` on v15, `/desk` on v16), never on other websites.
+Frappe Pilot only runs on Frappe desk pages (`/app` on v15, `/desk` on v16), never on other websites. It has no analytics and no servers of its own. Full details: [Privacy Policy](PRIVACY.md).
 
 Your AI key is stored locally in the browser and is only sent to the AI provider you choose, and only when you run Magic Filler.
 
