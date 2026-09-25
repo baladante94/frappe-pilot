@@ -1,8 +1,27 @@
-# 🚀 Frappe Pilot
+<p align="center">
+  <img src="frappe-pilot/icon.png" alt="Frappe Pilot" width="96">
+</p>
 
-**The ultimate browser extension for Frappe & ERPNext developers.**
+<h1 align="center">Frappe Pilot</h1>
+
+<p align="center">
+  <b>The browser toolkit for Frappe & ERPNext developers and consultants.</b><br>
+  Works on Frappe v15 and v16 · Chrome, Edge, Brave, Safari · Free and open source
+</p>
+
+<p align="center">
+  <img src="screenshots/magic-filler-demo.gif" alt="AI Magic Filler filling an ERPNext form in one shortcut" width="820">
+</p>
 
 Frappe Pilot injects a suite of power-user tools directly into the Frappe UI, saving you hours of time on debugging, data entry, and configuration. Every tool can be switched on or off from the extension popup.
+
+## 📸 Screenshots
+
+| | |
+|:---:|:---:|
+| <img src="screenshots/1-xray.png" alt="X-Ray field badges with custom fields highlighted"><br>**X-Ray:** fieldnames, types and options, custom fields ★ | <img src="screenshots/2-quick-customize.png" alt="Quick Customize opens the field in Customize Form"><br>**Quick Customize:** click a field, land on it in Customize Form |
+| <img src="screenshots/3-magic-filler.png" alt="Magic Filler filled an Address form"><br>**AI Magic Filler:** realistic test data in one shortcut | <img src="screenshots/4-teleport.png" alt="Teleport paste dialog with existing-record options"><br>**Data Teleport:** move records between sites, safely |
+| <img src="screenshots/5-link-peek-perms.png" alt="Link Peek preview and Perm Inspector"><br>**Link Peek + Perm Inspector** | |
 
 ## ✨ Features
 
