@@ -151,34 +151,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
             if (!tabs[0]) { resetScanBtn('⚠️ No active tab found'); return; }
-            chrome.tabs.sendMessage(tabs[0].id, { action: "GET_FIELDS" }, () => {
-                // sendMessage callback fires immediately on error (no listener)
-                if (chrome.runtime.lastError) resetScanBtn('⚠️ Page not ready — refresh & retry');
+            chrome.tabs.sendMessage(tabs[0].id, { action: "GET_FIELDS" }, (res) => {
+                if (chrome.runtime.lastError) { resetScanBtn('⚠️ Open a Frappe form, then refresh & retry'); return; }
+                if (!res || res.error) { resetScanBtn('⚠️ Timed out — refresh & retry'); return; }
+                showFields(res.data);
             });
         });
     });
 
-    chrome.runtime.onMessage.addListener((msg) => {
-        if (msg.action === "FIELDS_DATA") {
-            clearTimeout(scanTimeout);
-            currentFields = msg.data.fields || [];
-            currentDocType = msg.data.doctype || "frappe_data";
-            currentDocName = msg.data.docname || "";
+    function showFields(data) {
+        clearTimeout(scanTimeout);
+        currentFields = data.fields || [];
+        currentDocType = data.doctype || "frappe_data";
+        currentDocName = data.docname || "";
 
-            renderPreview();
-            btnScan.innerText = '🔄 Re-Scan Fields';
-            btnScan.disabled = false;
-            
-            if (currentFields.length > 0) {
-                btnCsv.style.display = 'flex';
-                btnCsv.innerText = `Download ${currentDocType} CSV`;
-                showStatus(`Found ${currentFields.length} fields`);
-            } else {
-                btnCsv.style.display = 'none';
-                showStatus('No fields found');
-            }
+        renderPreview();
+        btnScan.innerText = '🔄 Re-Scan Fields';
+        btnScan.disabled = false;
+        
+        if (currentFields.length > 0) {
+            btnCsv.style.display = 'flex';
+            btnCsv.innerText = `Download ${currentDocType} CSV`;
+            showStatus(`Found ${currentFields.length} fields`);
+        } else {
+            btnCsv.style.display = 'none';
+            showStatus('No fields found');
         }
-    });
+    }
 
     function renderPreview() {
         previewList.style.display = 'block';

@@ -88,11 +88,6 @@ window.addEventListener("message", (event) => {
         });
     }
 
-    // E. EXPORT Bridge
-    if (event.data.type === "FRAPPE_PILOT_FIELDS_DATA") {
-        chrome.runtime.sendMessage({ action: "FIELDS_DATA", data: event.data.payload });
-    }
-
     // F. AI MAGIC FILL Bridge (inject.js → background.js → back)
     if (event.data.type === "FRAPPE_PILOT_AI_FILL_REQUEST") {
         chrome.runtime.sendMessage(
@@ -108,11 +103,23 @@ window.addEventListener("message", (event) => {
 });
 
 // 6. Listen for Popup Commands
-chrome.runtime.onMessage.addListener((req) => {
+chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     if (req.action === "UPDATE_CONFIG") {
         window.postMessage({ type: "FRAPPE_PILOT_CONFIG", config: req.config }, "*");
+        sendResponse({ ok: true });
     }
     if (req.action === "GET_FIELDS") {
+        // Reply on this same message channel; a missing reply makes Chrome report
+        // "message port closed", which the popup would read as "page not ready".
+        const timer = setTimeout(() => { window.removeEventListener("message", onData); sendResponse({ error: "timeout" }); }, 5000);
+        const onData = (event) => {
+            if (event.source !== window || event.data.type !== "FRAPPE_PILOT_FIELDS_DATA") return;
+            window.removeEventListener("message", onData);
+            clearTimeout(timer);
+            sendResponse({ data: event.data.payload });
+        };
+        window.addEventListener("message", onData);
         window.postMessage({ type: "FRAPPE_PILOT_GET_FIELDS" }, "*");
+        return true;
     }
 });

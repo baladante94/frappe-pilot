@@ -1,11 +1,5 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
-    if (request.action === "FIELDS_DATA") {
-        // Relay field scan data back to the popup
-        chrome.runtime.sendMessage({ action: "FIELDS_DATA", data: request.data });
-        return false;
-    }
-
     if (request.action === "GENERATE_AI_DATA") {
         chrome.storage.local.get(['apiKey', 'aiProvider'], async (res) => {
             if (!res.apiKey) {
