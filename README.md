@@ -10,6 +10,11 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/frappe-pilot/bnibgaanaemplgmnlgimehepncpbpcdi"><img src="https://img.shields.io/badge/Chrome%20Web%20Store-Install-14b8a6?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Install from the Chrome Web Store"></a>
+  <a href="https://youtu.be/fqtlQOIfLTk"><img src="https://img.shields.io/badge/Watch-2%20min%20demo-ff2e97?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the demo on YouTube"></a>
+</p>
+
+<p align="center">
   <img src="screenshots/magic-filler-demo.gif" alt="AI Magic Filler filling an ERPNext form in one shortcut" width="820">
 </p>
 
@@ -86,7 +91,10 @@ See at a glance what the current user can do on the open DocType: Read, Write, C
 
 ## 📦 Installation
 
-### Chrome / Edge / Brave
+### From the Chrome Web Store (recommended)
+Install from the **[Chrome Web Store](https://chromewebstore.google.com/detail/frappe-pilot/bnibgaanaemplgmnlgimehepncpbpcdi)**. It works in Chrome, Edge and Brave, and updates automatically.
+
+### From source
 1. Clone or download this repository.
 2. Open your browser and navigate to `chrome://extensions`.
 3. Enable **Developer Mode** (top right).

@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(cols.options) headers.push("Options");
         if(cols.value) headers.push("Value");
 
-        let csv = "data:text/csv;charset=utf-8," + headers.join(",") + "\n";
+        let csv = headers.join(",") + "\n";
 
         selectedIndices.forEach(i => {
             const f = currentFields[i];
@@ -246,8 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
             csv += row.join(",") + "\n";
         });
 
+        // Blob, not a data: URI: a "#" in the data (e.g. naming series .#####) would cut the file short
+        const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
         const link = document.createElement("a");
-        link.href = encodeURI(csv);
+        link.href = url;
 
         const date = new Date().toISOString().slice(0, 10);
         const cleanType = currentDocType.replace(/\s+/g, '-');
@@ -258,7 +260,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         document.body.appendChild(link);
         link.click();
-        document.body.remove();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
         
         showStatus('CSV Downloaded!');
     });
