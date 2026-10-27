@@ -1,16 +1,18 @@
 (function() {
+    if (window.__fpDispose) window.__fpDispose();
+    const intervals = [];
     let observer = null;
     let configLoaded = false;
     let lastUrl = location.href;
 
     // --- 1. ROUTE LISTENER ---
-    setInterval(() => {
+    intervals.push(setInterval(() => {
         if (location.href !== lastUrl) {
             lastUrl = location.href;
             setTimeout(() => window.frappePilot && window.frappePilot.refreshState(true), 500);
             setTimeout(() => window.frappePilot && window.frappePilot.refreshState(true), 1500);
         }
-    }, 500);
+    }, 500));
 
     // --- 2. HANDSHAKE ---
     const handshakeInterval = setInterval(() => {
@@ -20,14 +22,14 @@
     setTimeout(() => clearInterval(handshakeInterval), 5000);
 
     // --- 3. SAFETY NET ---
-    setInterval(() => {
+    intervals.push(setInterval(() => {
         if (window.frappePilot?.config?.teleport) window.frappePilot.injectTeleportButton();
         if (window.frappePilot?.config?.xray) window.frappePilot.refreshXRay();
         if (window.frappePilot?.config?.hidden_fields) window.frappePilot.toggleHiddenFields(true, true);
         if (window.frappePilot?.config?.link_peek) window.frappePilot.refreshLinkedPeek();
         if (window.frappePilot?.config?.schema_export) window.frappePilot.injectSchemaExportBtn();
         if (window.frappePilot?.config?.perm_inspector) window.frappePilot.refreshPermInspector();
-    }, 1500);
+    }, 1500));
 
     // --- 4. MAIN CONTROLLER ---
     window.frappePilot = {
@@ -628,14 +630,14 @@
         },
 
         handlePasteData: async function(docs) {
+            if (Date.now() - (window.__fpLastPaste || 0) < 2000) return;
+            window.__fpLastPaste = Date.now();
             if (!docs || !docs.length) { frappe.msgprint("Clipboard empty."); return; }
             const doctype = window.cur_list.doctype;
             if (doctype !== docs[0].doctype) { frappe.msgprint(`⚠️ Mismatch! Clipboard: ${docs[0].doctype}`); return; }
 
-            const names = docs.map(d => d.name).filter(Boolean);
-            const existing = names.length
-                ? (await frappe.db.get_list(doctype, { filters: { name: ['in', names] }, fields: ['name'], limit: names.length })).map(r => r.name)
-                : [];
+            const { names: localNames, labels } = await this.matchExisting(doctype, docs, frappe.defaults.get_user_default("Company") || frappe.defaults.get_default("company"));
+            const existing = docs.filter(d => localNames.has(d)).map(d => labels.get(d));
 
             const fields = [{ fieldtype: 'HTML', options: `<p>Paste <b>${docs.length}</b> ${frappe.utils.escape_html(doctype)} record(s) into this site.</p>` }];
             if (existing.length) {
@@ -659,16 +661,16 @@
                     const localCompany = frappe.defaults.get_user_default("Company") || frappe.defaults.get_default("company");
                     const result = { inserted: 0, updated: 0, skipped: 0 };
                     for (const doc of docs) {
-                        if (existing.includes(doc.name)) {
+                        if (localNames.has(doc)) {
                             if (onExisting === 'Skip') { result.skipped++; continue; }
                             if (onExisting === 'Update existing') {
-                                if (await this.updateWithRetry(doc, localCompany)) result.updated++;
+                                if (await this.updateWithRetry({ ...doc, name: localNames.get(doc) }, localCompany)) result.updated++;
                                 continue;
                             }
                         }
                         const newDoc = this.cleanDoc(doc, localCompany);
                         // Frappe only honours a given name for Prompt naming, so keeping it is harmless otherwise.
-                        if (!existing.includes(doc.name)) newDoc.name = doc.name;
+                        if (!localNames.has(doc)) newDoc.name = doc.name;
                         if (await this.insertWithRetry(newDoc)) result.inserted++;
                     }
                     const parts = [];
@@ -680,6 +682,53 @@
                 }
             });
             d.show();
+        },
+
+        // Finds the local record each copied doc corresponds to. Names only match across sites when the doctype names by field/prompt/plain format; otherwise match on the record's own values.
+        matchExisting: async function(doctype, docs, localCompany) {
+            const matches = new Map();
+            const labels = new Map();
+            const byName = async () => {
+                const names = docs.map(d => d.name).filter(Boolean);
+                const found = names.length
+                    ? (await frappe.db.get_list(doctype, { filters: { name: ['in', names] }, fields: ['name'], limit: names.length })).map(r => r.name)
+                    : [];
+                docs.forEach(doc => { if (found.includes(doc.name)) { matches.set(doc, doc.name); labels.set(doc, doc.name); } });
+                return { names: matches, labels };
+            };
+
+            const meta = frappe.get_meta(doctype);
+            const autoname = (meta.autoname || '').toLowerCase();
+            const nameIsStable = autoname.startsWith('field:') || autoname === 'prompt' || (autoname.startsWith('format:') && !autoname.includes('#'));
+            if (nameIsStable) return byName();
+
+            // Explicit identity for doctypes where a looser content match would miss real duplicates.
+            const KEY_FIELDS = { 'Custom DocPerm': ['parent', 'role', 'permlevel', 'if_owner'] };
+            const SKIP_TYPES = new Set(['Table', 'Table MultiSelect', 'HTML', 'Button', 'Section Break', 'Column Break', 'Tab Break', 'Fold', 'Heading', 'Image', 'Attach', 'Attach Image', 'Signature', 'Geolocation', 'JSON', 'Code', 'HTML Editor', 'Markdown Editor', 'Text Editor', 'Password', 'Small Text', 'Text', 'Long Text']);
+            const SKIP_NAMES = new Set(['naming_series', 'amended_from', 'workflow_state']);
+            const keys = KEY_FIELDS[doctype];
+            const fields = meta.fields.filter(f => f.fieldname && !f.is_virtual && !SKIP_TYPES.has(f.fieldtype) && !SKIP_NAMES.has(f.fieldname) && (!keys || keys.includes(f.fieldname)));
+            const isSet = v => v !== null && v !== undefined && v !== '' && v !== 0 && v !== '0';
+
+            try {
+                for (const doc of docs) {
+                    const val = f => (f.fieldname === 'company' && doc.company && localCompany) ? localCompany : doc[f.fieldname];
+                    const filters = {};
+                    fields.forEach(f => { const v = val(f); if (isSet(v)) filters[f.fieldname] = v; });
+                    if (!Object.keys(filters).length) continue;
+                    const rows = await frappe.db.get_list(doctype, { filters, fields: ['name', ...fields.map(f => f.fieldname)], limit: 20 });
+                    const hit = rows.find(r => fields.every(f => isSet(val(f)) || !isSet(r[f.fieldname])));
+                    if (hit) {
+                        matches.set(doc, hit.name);
+                        const shown = fields.map(f => val(f)).filter(v => isSet(v) && typeof v === 'string').slice(0, 3);
+                        labels.set(doc, shown.length ? shown.join(' / ') : hit.name);
+                    }
+                }
+                return { names: matches, labels };
+            } catch (e) {
+                matches.clear(); labels.clear();
+                return byName();
+            }
         },
 
         updateWithRetry: async function(doc, localCompany) {
@@ -732,7 +781,10 @@
         cleanDoc: function(doc, localCompany) {
             let d = JSON.parse(JSON.stringify(doc));
             const strip = ['name', 'owner', 'creation', 'modified', 'modified_by', 'docstatus', 'idx', 'parent', 'parentfield', 'parenttype', 'workflow_state', 'amended_from', '_user_tags', '_comments', '_assign', '_liked_by', 'lft', 'rgt', 'old_parent', 'is_group'];
-            strip.forEach(k => delete d[k]);
+            // Only keep these when the doctype declares them as real fields (Custom DocPerm's parent, tree is_group); child rows still lose them.
+            const KEEP_IF_OWN = new Set(['parent', 'parentfield', 'parenttype', 'is_group']);
+            const ownFields = new Set(frappe.get_meta(doc.doctype).fields.map(f => f.fieldname));
+            strip.forEach(k => { if (!(KEEP_IF_OWN.has(k) && ownFields.has(k))) delete d[k]; });
             if (d.company && localCompany) d.company = localCompany;
             return d;
         },
@@ -1088,7 +1140,7 @@
         }
     };
 
-    window.addEventListener("message", (event) => {
+    const onMessage = (event) => {
         if (event.source !== window) return;
         if (event.data.type === "FRAPPE_PILOT_CONFIG") window.frappePilot.updateConfig(event.data.config);
         
@@ -1109,5 +1161,13 @@
         if (event.data.type === "FRAPPE_PILOT_RECEIVE_DOCS") {
             window.frappePilot.handlePasteData(event.data.payload);
         }
-    });
+    };
+    window.addEventListener("message", onMessage);
+
+    window.__fpDispose = () => {
+        intervals.forEach(clearInterval);
+        window.removeEventListener("message", onMessage);
+        if (observer) observer.disconnect();
+        ['fp-teleport-btn', 'fp-schema-btn'].forEach(id => document.getElementById(id)?.remove());
+    };
 })();

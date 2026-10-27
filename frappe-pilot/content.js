@@ -55,8 +55,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 });
 
 // 5. MESSAGE RELAY (Page <-> Extension)
-window.addEventListener("message", (event) => {
+const onPageMessage = (event) => {
     if (event.source !== window) return;
+    // After an extension reload this orphaned script must go quiet, or it throws and double-answers the new one.
+    if (!chrome.runtime?.id) { window.removeEventListener("message", onPageMessage); return; }
 
     // A. Config Handshake
     if (event.data.type === "FRAPPE_PILOT_HELLO") {
@@ -100,7 +102,8 @@ window.addEventListener("message", (event) => {
             }
         );
     }
-});
+};
+window.addEventListener("message", onPageMessage);
 
 // 6. Listen for Popup Commands
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
