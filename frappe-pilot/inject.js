@@ -1013,7 +1013,7 @@
                 try {
                     const doc = frame.contentDocument;
                     const css = doc.createElement('style');
-                    css.textContent = ':root{--navbar-height:0px !important}header.navbar,.navbar.sticky-top{display:none !important}.page-head{top:0 !important}';
+                    css.textContent = ':root{--navbar-height:0px !important;--sidebar-width:0px !important}header.navbar,.navbar.sticky-top,.body-sidebar-container,.body-sidebar-placeholder{display:none !important}.page-head{top:0 !important}';
                     doc.head.appendChild(css);
                     doc.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.closeGlance(); }, true);
                     frame.contentWindow.focus();
