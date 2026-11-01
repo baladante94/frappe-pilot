@@ -26,14 +26,13 @@ fi
 for f in "$EXT"/*.js; do node --check "$f"; done
 
 python3 - "$MANIFEST" "$NEW" "$NAME" <<'EOF'
-import json, sys
+import re, sys
 path, new, name = sys.argv[1:4]
-m = json.load(open(path))
-m["version"] = new
+s = open(path).read()
+s = re.sub(r'("version"\s*:\s*)"[^"]*"', lambda m: m.group(1) + '"' + new + '"', s, count=1)
 if name:
-    m["version_name"] = name
-json.dump(m, open(path, "w"), indent=2, ensure_ascii=False)
-open(path, "a").write("\n")
+    s = re.sub(r'("version_name"\s*:\s*)"[^"]*"', lambda m: m.group(1) + '"' + name + '"', s, count=1)
+open(path, "w").write(s)
 EOF
 
 python3 - "$EXT" <<'EOF'
