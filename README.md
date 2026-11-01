@@ -82,11 +82,18 @@ Need a list of fields for documentation or a client script?
 ### 8. 🔐 Perm Inspector
 See at a glance what the current user can do on the open DocType: Read, Write, Create, Delete, Submit, Cancel, and Amend.
 
+### 9. 👀 Glance
+Preview any record without opening a new tab. Hold `Alt` (`Option` on Mac) and click a link in a list row, a Link field or the timeline, and the full form opens in an overlay on top of your current page.
+- Press `Esc` to close it, or use **Open in tab** to keep it.
+- Same-origin preview, so it shows the real form with all fields, not a summary.
+- Works on Frappe v15 and v16.
+
 ## ⌨️ Shortcuts
 
 | Action | Windows / Linux | Mac |
 | :--- | :--- | :--- |
 | **Magic Filler** | `Alt` + `Shift` + `F` | `Cmd` or `Option` + `Shift` + `F` |
+| **Glance** | `Alt` + click a link | `Option` + click a link |
 | **Other tools** | *Toggle in popup* | *Toggle in popup* |
 
 ## 📦 Installation
