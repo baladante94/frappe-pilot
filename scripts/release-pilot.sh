@@ -19,12 +19,17 @@ if [ -n "$(git status --porcelain -- frappe-pilot)" ]; then
 fi
 
 CURRENT="$(python3 -c "import json;print(json.load(open('$MANIFEST'))['version'])")"
-if [ "$(printf '%s\n%s\n' "$CURRENT" "$NEW" | sort -V | tail -1)" != "$NEW" ] || [ "$CURRENT" = "$NEW" ]; then
+# Same version as the committed manifest means "rebuild the zip from current code" (store upload not yet submitted).
+REBUILD=0
+if [ "$CURRENT" = "$NEW" ]; then
+    REBUILD=1
+elif [ "$(printf '%s\n%s\n' "$CURRENT" "$NEW" | sort -V | tail -1)" != "$NEW" ]; then
     echo "New version $NEW must be higher than the store's current $CURRENT."; exit 1
 fi
 
 for f in "$EXT"/*.js; do node --check "$f"; done
 
+if [ "$REBUILD" = 0 ]; then
 python3 - "$MANIFEST" "$NEW" "$NAME" <<'EOF'
 import re, sys
 path, new, name = sys.argv[1:4]
@@ -34,6 +39,7 @@ if name:
     s = re.sub(r'("version_name"\s*:\s*)"[^"]*"', lambda m: m.group(1) + '"' + name + '"', s, count=1)
 open(path, "w").write(s)
 EOF
+fi
 
 python3 - "$EXT" <<'EOF'
 import json, os, sys
@@ -63,7 +69,7 @@ unzip -l "$ZIP" | tail -n +4
 cat <<EOF
 
 Next steps:
- 1. git add frappe-pilot/manifest.json && git commit   (message: "Bump to $NEW")
+ 1. git add frappe-pilot/manifest.json && git commit   (message: "Bump to $NEW"; skip if rebuilding)
  2. Chrome Web Store dashboard > Frappe Pilot > Package > Upload new package > $ZIP
     Item ID: bnibgaanaemplgmnlgimehepncpbpcdi. Submit for review; it auto-publishes on approval.
  3. Optional: Edge Add-ons (Partner Center) with the same zip.
