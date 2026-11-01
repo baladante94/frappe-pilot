@@ -8,7 +8,7 @@ script.onload = function() { this.remove(); };
 
 // 2. Helper: Sync Config & Clipboard to Page
 function syncState() {
-    chrome.storage.local.get(['xray', 'magic', 'hidden_fields', 'teleport', 'link_peek', 'schema_export', 'perm_inspector', 'fp_field_clipboard'], (res) => {
+    chrome.storage.local.get(['xray', 'magic', 'hidden_fields', 'teleport', 'link_peek', 'glance', 'schema_export', 'perm_inspector', 'fp_field_clipboard'], (res) => {
         // Send Config
         window.postMessage({
             type: "FRAPPE_PILOT_CONFIG",
@@ -18,6 +18,7 @@ function syncState() {
                 hidden_fields: res.hidden_fields || false,
                 teleport: res.teleport || false,
                 link_peek: res.link_peek || false,
+                glance: res.glance || false,
                 schema_export: res.schema_export || false,
                 perm_inspector: res.perm_inspector || false
             }
@@ -48,7 +49,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 
     // If any feature toggle changed, re-sync full config to the page.
     // This is a reliable fallback in case chrome.tabs.sendMessage failed.
-    const CONFIG_KEYS = ['xray', 'magic', 'hidden_fields', 'teleport', 'link_peek', 'schema_export', 'perm_inspector'];
+    const CONFIG_KEYS = ['xray', 'magic', 'hidden_fields', 'teleport', 'link_peek', 'glance', 'schema_export', 'perm_inspector'];
     if (CONFIG_KEYS.some(k => changes[k] !== undefined)) {
         syncState();
     }

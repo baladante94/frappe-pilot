@@ -33,7 +33,7 @@
 
     // --- 4. MAIN CONTROLLER ---
     window.frappePilot = {
-        config: { xray: false, magic: false, hidden_fields: false, teleport: true, link_peek: false, schema_export: false, perm_inspector: false },
+        config: { xray: false, magic: false, hidden_fields: false, teleport: true, link_peek: false, glance: false, schema_export: false, perm_inspector: false },
         fieldClipboard: null,
         burstInterval: null,
         keysSetup: false,
@@ -972,6 +972,71 @@
         },
 
         // ============================================================
+        //  FEATURE 9: GLANCE (Alt/Option+click a desk link to preview it in an overlay)
+        // ============================================================
+        openGlance: function(url) {
+            this.closeGlance();
+            const title = decodeURIComponent(url.pathname).replace(/^\/(app|desk)\/?/, '').split('/').filter(Boolean).join(' / ') || 'Home';
+
+            const wrap = document.createElement('div');
+            wrap.id = 'fp-glance';
+            wrap.style.cssText = 'position:fixed;top:0;right:0;bottom:0;left:0;z-index:100000;background:rgba(15,23,42,0.55);display:flex;align-items:center;justify-content:center;';
+            wrap.addEventListener('mousedown', (e) => { if (e.target === wrap) this.closeGlance(); });
+
+            const panel = document.createElement('div');
+            panel.style.cssText = 'width:min(1280px,92vw);height:88vh;background:#fff;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden;';
+
+            const bar = document.createElement('div');
+            bar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #e0e5ea;background:#f8fafc;font:600 12px system-ui,sans-serif;color:#334155;';
+            const label = document.createElement('span');
+            label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+            label.textContent = '\u{1F440} ' + title;
+            const mkBtn = (text, onclick) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = text;
+                b.style.cssText = 'border:1px solid #d1d8dd;background:#fff;border-radius:6px;padding:3px 10px;font:600 12px system-ui,sans-serif;color:#334155;cursor:pointer;';
+                b.addEventListener('click', onclick);
+                return b;
+            };
+            bar.append(label, mkBtn('Open in tab \u2197', () => { window.open(url.href, '_blank'); this.closeGlance(); }), mkBtn('Esc \u2715', () => this.closeGlance()));
+
+            const body = document.createElement('div');
+            body.style.cssText = 'position:relative;flex:1;background:#fff;';
+            const loading = document.createElement('div');
+            loading.textContent = 'Loading\u2026';
+            loading.style.cssText = 'position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;font:12px system-ui,sans-serif;color:#94a3b8;';
+            const frame = document.createElement('iframe');
+            frame.style.cssText = 'position:relative;width:100%;height:100%;border:0;background:transparent;';
+            frame.addEventListener('load', () => {
+                loading.remove();
+                try {
+                    const doc = frame.contentDocument;
+                    const css = doc.createElement('style');
+                    css.textContent = ':root{--navbar-height:0px !important}header.navbar,.navbar.sticky-top{display:none !important}.page-head{top:0 !important}';
+                    doc.head.appendChild(css);
+                    doc.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.closeGlance(); }, true);
+                    frame.contentWindow.focus();
+                } catch (_) {}
+            });
+            frame.src = url.href;
+            body.append(loading, frame);
+
+            panel.append(bar, body);
+            wrap.appendChild(panel);
+            document.body.appendChild(wrap);
+
+            this._glanceKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); this.closeGlance(); } };
+            document.addEventListener('keydown', this._glanceKey, true);
+        },
+
+        closeGlance: function() {
+            const wrap = document.getElementById('fp-glance');
+            if (wrap) wrap.remove();
+            if (this._glanceKey) { document.removeEventListener('keydown', this._glanceKey, true); this._glanceKey = null; }
+        },
+
+        // ============================================================
         //  FEATURE 7: DOCTYPE SCHEMA EXPORT
         // ============================================================
         injectSchemaExportBtn: function() {
@@ -1164,9 +1229,25 @@
     };
     window.addEventListener("message", onMessage);
 
+    const onGlanceClick = (event) => {
+        const fp = window.frappePilot;
+        if (!fp || !fp.config.glance || event.button !== 0 || !event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return;
+        const a = event.target.closest && event.target.closest('a[href]');
+        if (!a) return;
+        let url;
+        try { url = new URL(a.getAttribute('href'), location.href); } catch (_) { return; }
+        if (url.origin !== location.origin || !/^\/(app|desk)(\/|$)/.test(url.pathname)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        fp.openGlance(url);
+    };
+    document.addEventListener("click", onGlanceClick, true);
+
     window.__fpDispose = () => {
         intervals.forEach(clearInterval);
         window.removeEventListener("message", onMessage);
+        document.removeEventListener("click", onGlanceClick, true);
+        if (window.frappePilot && window.frappePilot.closeGlance) window.frappePilot.closeGlance();
         if (observer) observer.disconnect();
         ['fp-teleport-btn', 'fp-schema-btn'].forEach(id => document.getElementById(id)?.remove());
     };

@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const hiddenToggle = document.getElementById('hidden_fields');
     const teleportToggle = document.getElementById('teleport');
     const linkPeekToggle = document.getElementById('link_peek');
+    const glanceToggle = document.getElementById('glance');
     const schemaExportToggle = document.getElementById('schema_export');
     const permInspectorToggle = document.getElementById('perm_inspector');
     const exportHeader = document.getElementById('toggle-export');
@@ -81,12 +82,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentDocName = "";
 
     // --- 1. SYNC STATE ---
-    chrome.storage.local.get(['xray', 'magic', 'hidden_fields', 'teleport', 'link_peek', 'schema_export', 'perm_inspector'], (res) => {
+    chrome.storage.local.get(['xray', 'magic', 'hidden_fields', 'teleport', 'link_peek', 'glance', 'schema_export', 'perm_inspector'], (res) => {
         xrayToggle.checked = res.xray || false;
         magicToggle.checked = res.magic || false;
         hiddenToggle.checked = res.hidden_fields || false;
         teleportToggle.checked = res.teleport || false;
         linkPeekToggle.checked = res.link_peek || false;
+        glanceToggle.checked = res.glance || false;
         schemaExportToggle.checked = res.schema_export || false;
         permInspectorToggle.checked = res.perm_inspector || false;
     });
@@ -98,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
             hidden_fields: hiddenToggle.checked,
             teleport: teleportToggle.checked,
             link_peek: linkPeekToggle.checked,
+            glance: glanceToggle.checked,
             schema_export: schemaExportToggle.checked,
             perm_inspector: permInspectorToggle.checked
         };
@@ -113,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hiddenToggle.addEventListener('change', updateState);
     teleportToggle.addEventListener('change', updateState);
     linkPeekToggle.addEventListener('change', updateState);
+    glanceToggle.addEventListener('change', updateState);
     schemaExportToggle.addEventListener('change', updateState);
     permInspectorToggle.addEventListener('change', updateState);
 
