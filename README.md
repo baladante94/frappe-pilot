@@ -27,6 +27,7 @@ DeskEasy injects a suite of power-user tools directly into the Frappe UI, saving
 | <img src="screenshots/1-xray.png" alt="X-Ray field badges with custom fields highlighted"><br>**X-Ray:** fieldnames, types and options, custom fields ★ | <img src="screenshots/2-quick-customize.png" alt="Quick Customize opens the field in Customize Form"><br>**Quick Customize:** click a field, land on it in Customize Form |
 | <img src="screenshots/3-magic-filler.png" alt="Magic Filler filled an Address form"><br>**AI Magic Filler:** realistic test data in one shortcut | <img src="screenshots/4-teleport.png" alt="Teleport paste dialog with existing-record options"><br>**Data Teleport:** move records between sites, safely |
 | <img src="screenshots/5-link-peek-perms.png" alt="Link Peek preview and Perm Inspector"><br>**Link Peek + Perm Inspector** | <img src="screenshots/6-popup.png" alt="DeskEasy popup with tool toggles and AI settings"><br>**The popup:** every tool is one toggle away |
+| <img src="screenshots/7-glance.png" alt="Glance overlay previewing a linked Patient record on top of a Consultation"><br>**Glance:** Alt+click any link, preview and edit the record in an overlay | <img src="screenshots/8-glance-notice.png" alt="Glance save notice offering a Refresh"><br>**Glance save notice:** one click refreshes just that record |
 
 ## ✨ Features
 
