@@ -1,11 +1,11 @@
-# Frappe Pilot Privacy Policy
+# DeskEasy Privacy Policy
 
 _Last updated: 25 September 2026_
 
-Frappe Pilot is a browser extension for developers and consultants working with Frappe and ERPNext. This policy explains what data it handles and where that data goes.
+DeskEasy is a browser extension for developers and consultants working with Frappe and ERPNext. This policy explains what data it handles and where that data goes.
 
 ## Summary
-- Frappe Pilot does **not** collect, sell, or share your data.
+- DeskEasy does **not** collect, sell, or share your data.
 - It has **no analytics, tracking, or servers** of its own.
 - It only runs on Frappe desk pages (`/app` on Frappe v15, `/desk` on Frappe v16).
 
@@ -19,7 +19,7 @@ The following is saved in your browser's local extension storage and never leave
 Features like X-Ray, Link Peek, Teleport, and Quick Customize read from and write to the Frappe site you are already logged into, using your own session and permissions. Nothing is sent anywhere else.
 
 ## AI features (optional)
-Magic Filler is off by default and only works if you add your own API key. When you trigger it, Frappe Pilot sends a request directly from your browser to the AI provider you chose (Google Gemini, OpenAI, or Anthropic). The request contains:
+Magic Filler is off by default and only works if you add your own API key. When you trigger it, DeskEasy sends a request directly from your browser to the AI provider you chose (Google Gemini, OpenAI, or Anthropic). The request contains:
 - the DocType name, and
 - the form's field definitions (label, fieldname, field type, options, and whether it is mandatory).
 

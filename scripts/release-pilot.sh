@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage: scripts/release-pilot.sh <new-version> [version_name]
-# Bumps the manifest, validates the extension and builds release/frappe-pilot-<version>.zip.
+# Bumps the manifest, validates the extension and builds release/deskeasy-<version>.zip.
 # It never uploads anything; the store upload stays a manual step.
 set -euo pipefail
 
@@ -59,9 +59,9 @@ if missing:
 EOF
 
 mkdir -p "$ROOT/release"
-ZIP="$ROOT/release/frappe-pilot-$NEW.zip"
+ZIP="$ROOT/release/deskeasy-$NEW.zip"
 rm -f "$ZIP"
-(cd "$EXT" && zip -q -X "$ZIP" icon.png manifest.json background.js content.js inject.js popup.html popup.js tabs.js styles.css)
+(cd "$EXT" && zip -q -X "$ZIP" icon.png icon-16.png icon-48.png manifest.json background.js content.js inject.js popup.html popup.js tabs.js styles.css)
 
 echo
 echo "Built $ZIP"
@@ -70,9 +70,9 @@ cat <<EOF
 
 Next steps:
  1. git add frappe-pilot/manifest.json && git commit   (message: "Bump to $NEW"; skip if rebuilding)
- 2. Chrome Web Store dashboard > Frappe Pilot > Package > Upload new package > $ZIP
+ 2. Chrome Web Store dashboard > DeskEasy (item bnibgaanaemplgmnlgimehepncpbpcdi) > Package > Upload new package > $ZIP
     Item ID: bnibgaanaemplgmnlgimehepncpbpcdi. Submit for review; it auto-publishes on approval.
  3. Optional: Edge Add-ons (Partner Center) with the same zip.
  4. After approval: git tag v$NEW && git push origin main --tags, then publish a GitHub release with the zip.
- 5. Log it in the vault: Frappe Pilot/Changes.md
+ 5. Log it in the vault: DeskEasy (Frappe Pilot)/Changes.md
 EOF

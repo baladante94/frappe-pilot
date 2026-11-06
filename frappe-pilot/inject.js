@@ -63,8 +63,8 @@
                 }, 300);
             };
 
-            if (teleportOn) burst(() => this.injectTeleportButton(),   () => !!document.getElementById('fp-teleport-btn'));
-            if (schemaOn)   burst(() => this.injectSchemaExportBtn(),   () => !!document.getElementById('fp-schema-btn'));
+            if (teleportOn) burst(() => this.injectTeleportButton(),   () => this.hasTeleportBtn());
+            if (schemaOn)   burst(() => this.injectSchemaExportBtn(),   () => this.hasSchemaBtn());
             if (permOn)     burst(() => this.refreshPermInspector(),    () => !!document.getElementById('fp-perm-panel'));
             if (peekOn)     burst(() => this.refreshLinkedPeek(),       () => false); // peek binds incrementally, just run 10 times
         },
@@ -85,6 +85,29 @@
             this.injectSchemaExportBtn();
             this.refreshPermInspector();
             this.setupKeys();
+            this.setupRefreshHooks();
+        },
+
+        // Re-check right away on in-app navigation and when the tab comes back, instead of waiting for the slow safety-net timer.
+        setupRefreshHooks: function() {
+            if (!this._visHandler) {
+                this._visHandler = () => { if (!document.hidden) this.refreshState(true); };
+                document.addEventListener('visibilitychange', this._visHandler);
+            }
+            if (!this._routeKick) {
+                try {
+                    if (window.frappe && frappe.router && frappe.router.on) {
+                        this._routeKick = () => { setTimeout(() => this.refreshState(true), 150); setTimeout(() => this.refreshState(true), 900); };
+                        frappe.router.on('change', this._routeKick);
+                    }
+                } catch (_) {}
+            }
+        },
+
+        teardownRefreshHooks: function() {
+            if (this._visHandler) document.removeEventListener('visibilitychange', this._visHandler);
+            try { if (this._routeKick && frappe.router && frappe.router.off) frappe.router.off('change', this._routeKick); } catch (_) {}
+            this._visHandler = null; this._routeKick = null;
         },
 
         init: function() { 
@@ -584,29 +607,33 @@
         // ============================================================
         //  FEATURE 5: TELEPORT / EXPORTS
         // ============================================================
-        injectTeleportButton: function() {
-            const btnId = 'fp-teleport-btn';
-            if (!this.config.teleport) { const e = document.getElementById(btnId); if(e) e.remove(); return; }
-            if (!window.cur_list || !window.cur_list.page || document.getElementById(btnId)) return;
+        // Frappe keeps every visited list page in the DOM, so look only inside the page being shown.
+        pageEl: function(page) { const w = page && page.wrapper; return w ? (w[0] || w) : null; },
+        hasTeleportBtn: function() { const w = this.pageEl(window.cur_list && window.cur_list.page); return !!(w && w.querySelector('.fp-teleport-btn')); },
+        hasSchemaBtn: function() { const w = this.pageEl(window.cur_frm && window.cur_frm.page); return !!(w && w.querySelector('.fp-schema-btn')); },
 
-            const pageActions = $(window.cur_list.page.wrapper).find('.page-actions');
-            const standardActions = $(window.cur_list.page.wrapper).find('.standard-actions');
+        injectTeleportButton: function() {
+            if (!this.config.teleport) { document.querySelectorAll('.fp-teleport-btn').forEach(e => e.remove()); return; }
+            const wrap = this.pageEl(window.cur_list && window.cur_list.page);
+            if (!wrap || wrap.querySelector('.fp-teleport-btn')) return;
+
+            const pageActions = $(wrap).find('.page-actions');
+            const standardActions = $(wrap).find('.standard-actions');
             let anchor = standardActions.length ? standardActions : pageActions;
             if (!anchor.length) return;
 
             const btnGroup = document.createElement('div');
-            btnGroup.className = 'standard-actions btn-group';
-            btnGroup.id = btnId;
+            btnGroup.className = 'standard-actions btn-group fp-teleport-btn';
             btnGroup.style.marginRight = '10px';
             btnGroup.style.display = 'inline-block';
-            
-            btnGroup.innerHTML = `<button class="btn btn-secondary btn-default dropdown-toggle" data-toggle="dropdown" style="color:var(--primary); font-weight:600; display:flex; align-items:center;"><span class="icon icon-sm" style="margin-right:4px;"><svg class="icon icon-sm" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></span>Teleport</button><ul class="dropdown-menu"><li><a class="dropdown-item" id="fp-save-docs">📋 Copy Selected</a></li><li><a class="dropdown-item" id="fp-insert-docs">📥 Paste Docs</a></li><li class="divider"></li><li><a class="dropdown-item" id="fp-export-csv">📊 Export CSV (List)</a></li><li><a class="dropdown-item" id="fp-export-json">💾 Export JSON</a></li></ul>`;
-            
+
+            btnGroup.innerHTML = `<button class="btn btn-secondary btn-default dropdown-toggle" data-toggle="dropdown" style="color:var(--primary); font-weight:600; display:flex; align-items:center;"><span class="icon icon-sm" style="margin-right:4px;"><svg class="icon icon-sm" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></span>Teleport</button><ul class="dropdown-menu"><li><a class="dropdown-item" data-fp="copy">📋 Copy Selected</a></li><li><a class="dropdown-item" data-fp="paste">📥 Paste Docs</a></li><li class="divider"></li><li><a class="dropdown-item" data-fp="csv">📊 Export CSV (List)</a></li><li><a class="dropdown-item" data-fp="json">💾 Export JSON</a></li></ul>`;
+
             anchor.prepend(btnGroup);
-            document.getElementById('fp-save-docs').onclick = () => this.teleportCopy();
-            document.getElementById('fp-insert-docs').onclick = () => this.teleportPaste();
-            document.getElementById('fp-export-csv').onclick = () => this.exportCSV();
-            document.getElementById('fp-export-json').onclick = () => this.exportJSON();
+            btnGroup.querySelector('[data-fp="copy"]').onclick = () => this.teleportCopy();
+            btnGroup.querySelector('[data-fp="paste"]').onclick = () => this.teleportPaste();
+            btnGroup.querySelector('[data-fp="csv"]').onclick = () => this.exportCSV();
+            btnGroup.querySelector('[data-fp="json"]').onclick = () => this.exportJSON();
         },
 
         teleportCopy: async function() {
@@ -1040,19 +1067,16 @@
         //  FEATURE 7: DOCTYPE SCHEMA EXPORT
         // ============================================================
         injectSchemaExportBtn: function() {
-            const btnId = 'fp-schema-btn';
-            if (!this.config.schema_export) { const e = document.getElementById(btnId); if (e) e.remove(); return; }
-            if (!window.cur_frm || document.getElementById(btnId)) return;
-            const pageWrapper = cur_frm.page && cur_frm.page.wrapper;
-            if (!pageWrapper) return;
+            if (!this.config.schema_export) { document.querySelectorAll('.fp-schema-btn').forEach(e => e.remove()); return; }
+            const wrap = this.pageEl(window.cur_frm && window.cur_frm.page);
+            if (!wrap || wrap.querySelector('.fp-schema-btn')) return;
 
             const btn = document.createElement('button');
-            btn.id = btnId;
-            btn.className = 'btn btn-default btn-sm';
+            btn.className = 'btn btn-default btn-sm fp-schema-btn';
             btn.style.cssText = 'margin-right:8px;font-size:11px;color:#2490ef;font-weight:600;';
-            btn.textContent = '📐 Schema';
+            btn.textContent = '\u{1F4D0} Schema';
             btn.onclick = () => this.exportSchema();
-            const actions = $(pageWrapper).find('.page-actions');
+            const actions = $(wrap).find('.page-actions');
             if (actions.length) actions.prepend(btn);
         },
 
@@ -1249,6 +1273,7 @@
         document.removeEventListener("click", onGlanceClick, true);
         if (window.frappePilot && window.frappePilot.closeGlance) window.frappePilot.closeGlance();
         if (observer) observer.disconnect();
-        ['fp-teleport-btn', 'fp-schema-btn'].forEach(id => document.getElementById(id)?.remove());
+        document.querySelectorAll('.fp-teleport-btn, .fp-schema-btn').forEach(e => e.remove());
+        if (window.frappePilot && window.frappePilot.teardownRefreshHooks) window.frappePilot.teardownRefreshHooks();
     };
 })();

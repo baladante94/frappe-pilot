@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('version').textContent = 'v' + chrome.runtime.getManifest().version;
     // --- UI ELEMENTS ---
     const xrayToggle = document.getElementById('xray');
     const magicToggle = document.getElementById('magic');
@@ -105,10 +106,15 @@ document.addEventListener('DOMContentLoaded', () => {
             perm_inspector: permInspectorToggle.checked
         };
         chrome.storage.local.set(config);
-        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-            if(tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: "UPDATE_CONFIG", config: config });
-        });
         showStatus('Settings saved');
+        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+            const tab = tabs[0];
+            if (!tab) return;
+            chrome.tabs.sendMessage(tab.id, { action: "UPDATE_CONFIG", config: config }, () => {
+                // A desk tab opened before the extension updated can no longer hear us; say so instead of failing silently.
+                if (chrome.runtime.lastError && /\/(app|desk)(\/|$)/.test(tab.url || '')) showStatus('Saved. Refresh this tab once to apply', 6000);
+            });
+        });
     };
 
     xrayToggle.addEventListener('change', updateState);
@@ -130,9 +136,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function showStatus(msg) {
+    let statusTimer = null;
+    function showStatus(msg, ms = 3000) {
         statusMsg.innerText = msg;
-        setTimeout(() => statusMsg.innerText = 'Ready to assist.', 3000);
+        clearTimeout(statusTimer);
+        statusTimer = setTimeout(() => statusMsg.innerText = 'Ready to assist.', ms);
     }
 
     // --- 3. SCAN LOGIC ---

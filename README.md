@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="frappe-pilot/icon.png" alt="Frappe Pilot" width="96">
+  <img src="frappe-pilot/icon.png" alt="DeskEasy" width="96">
 </p>
 
-<h1 align="center">Frappe Pilot</h1>
+<h1 align="center">DeskEasy</h1>
 
 <p align="center">
   <b>The browser toolkit for Frappe & ERPNext developers and consultants.</b><br>
@@ -18,7 +18,7 @@
   <img src="screenshots/magic-filler-demo.gif" alt="AI Magic Filler filling an ERPNext form in one shortcut" width="820">
 </p>
 
-Frappe Pilot injects a suite of power-user tools directly into the Frappe UI, saving you hours of time on debugging, data entry, and configuration. Every tool can be switched on or off from the extension popup.
+DeskEasy injects a suite of power-user tools directly into the Frappe UI, saving you hours of time on debugging, data entry, and configuration. Every tool can be switched on or off from the extension popup.
 
 ## 📸 Screenshots
 
@@ -26,7 +26,7 @@ Frappe Pilot injects a suite of power-user tools directly into the Frappe UI, sa
 |:---:|:---:|
 | <img src="screenshots/1-xray.png" alt="X-Ray field badges with custom fields highlighted"><br>**X-Ray:** fieldnames, types and options, custom fields ★ | <img src="screenshots/2-quick-customize.png" alt="Quick Customize opens the field in Customize Form"><br>**Quick Customize:** click a field, land on it in Customize Form |
 | <img src="screenshots/3-magic-filler.png" alt="Magic Filler filled an Address form"><br>**AI Magic Filler:** realistic test data in one shortcut | <img src="screenshots/4-teleport.png" alt="Teleport paste dialog with existing-record options"><br>**Data Teleport:** move records between sites, safely |
-| <img src="screenshots/5-link-peek-perms.png" alt="Link Peek preview and Perm Inspector"><br>**Link Peek + Perm Inspector** | <img src="screenshots/6-pilot-popup.png" alt="Frappe Pilot popup with tool toggles and AI settings"><br>**The popup:** every tool is one toggle away |
+| <img src="screenshots/5-link-peek-perms.png" alt="Link Peek preview and Perm Inspector"><br>**Link Peek + Perm Inspector** | <img src="screenshots/6-pilot-popup.png" alt="DeskEasy popup with tool toggles and AI settings"><br>**The popup:** every tool is one toggle away |
 
 ## ✨ Features
 
@@ -65,9 +65,9 @@ Move data between instances (e.g., Production to Local) without CSV imports.
 2. Select rows.
 3. Click **Teleport > Copy Selected**.
 4. Go to another instance and click **Teleport > Paste Docs**.
-5. *Pilot handles dependency cleanup (removing `owner`, timestamps, etc.) automatically and maps `company` to the target site's default.*
+5. *DeskEasy handles dependency cleanup (removing `owner`, timestamps, etc.) automatically and maps `company` to the target site's default.*
 
-If some records already exist on the target site, Pilot tells you which ones and lets you **Skip** them, **Update existing** (child tables are replaced), or **Insert as new copy**.
+If some records already exist on the target site, DeskEasy tells you which ones and lets you **Skip** them, **Update existing** (child tables are replaced), or **Insert as new copy**.
 
 Also lets you download the selected rows as CSV or JSON.
 
@@ -108,8 +108,11 @@ Install from the **[Chrome Web Store](https://chromewebstore.google.com/detail/f
 4. Click **Load Unpacked**.
 5. Select the `frappe-pilot` folder.
 
+## Disclaimer
+DeskEasy is an independent, community-built tool. It is not affiliated with, endorsed by or sponsored by Frappe Technologies. Frappe and ERPNext are trademarks of their respective owners and are used only to describe what the extension works with.
+
 ## 🔒 Privacy
-Frappe Pilot only runs on Frappe desk pages (`/app` on v15, `/desk` on v16), never on other websites. It has no analytics and no servers of its own. Full details: [Privacy Policy](PRIVACY.md).
+DeskEasy only runs on Frappe desk pages (`/app` on v15, `/desk` on v16), never on other websites. It has no analytics and no servers of its own. Full details: [Privacy Policy](PRIVACY.md).
 
 Your AI key is stored locally in the browser and is only sent to the AI provider you choose, and only when you run Magic Filler.
 

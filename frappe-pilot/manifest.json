@@ -1,17 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "Frappe Pilot",
-  "version": "1.0.3",
-  "version_name": "1.0.3",
-  "description": "Developer toolkit for Frappe & ERPNext v15/v16: X-Ray, AI Magic Filler, Data Teleport, Quick Customize, Link Peek and more.",
-  "icons": { "16": "icon.png", "48": "icon.png", "128": "icon.png" },
+  "name": "DeskEasy",
+  "version": "1.0.4",
+  "version_name": "1.0.4",
+  "description": "Toolkit for Frappe & ERPNext v15/v16: X-Ray, Glance preview, AI Magic Filler, Data Teleport, Quick Customize and more.",
+  "icons": { "16": "icon-16.png", "48": "icon-48.png", "128": "icon.png" },
   "permissions": ["activeTab", "storage"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
     "default_popup": "popup.html",
-    "default_icon": { "16": "icon.png", "48": "icon.png", "128": "icon.png" }
+    "default_icon": { "16": "icon-16.png", "48": "icon-48.png", "128": "icon.png" }
   },
   "content_scripts": [
     {
