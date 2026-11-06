@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Usage: scripts/release-pilot.sh <new-version> [version_name]
+# Usage: scripts/release-deskeasy.sh <new-version> [version_name]
 # Bumps the manifest, validates the extension and builds release/deskeasy-<version>.zip.
 # It never uploads anything; the store upload stays a manual step.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-EXT="$ROOT/frappe-pilot"
+EXT="$ROOT/deskeasy"
 MANIFEST="$EXT/manifest.json"
 
 NEW="${1:-}"
@@ -14,8 +14,8 @@ NAME="${2:-}"
 [[ "$NEW" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]] || { echo "Version must be numeric like 1.0.2"; exit 1; }
 
 cd "$ROOT"
-if [ -n "$(git status --porcelain -- frappe-pilot)" ]; then
-    echo "Uncommitted changes in frappe-pilot/. Commit them first so the zip matches git."; exit 1
+if [ -n "$(git status --porcelain -- deskeasy)" ]; then
+    echo "Uncommitted changes in deskeasy/. Commit them first so the zip matches git."; exit 1
 fi
 
 CURRENT="$(python3 -c "import json;print(json.load(open('$MANIFEST'))['version'])")"
@@ -69,7 +69,7 @@ unzip -l "$ZIP" | tail -n +4
 cat <<EOF
 
 Next steps:
- 1. git add frappe-pilot/manifest.json && git commit   (message: "Bump to $NEW"; skip if rebuilding)
+ 1. git add deskeasy/manifest.json && git commit   (message: "Bump to $NEW"; skip if rebuilding)
  2. Chrome Web Store dashboard > DeskEasy (item bnibgaanaemplgmnlgimehepncpbpcdi) > Package > Upload new package > $ZIP
     Item ID: bnibgaanaemplgmnlgimehepncpbpcdi. Submit for review; it auto-publishes on approval.
  3. Optional: Edge Add-ons (Partner Center) with the same zip.

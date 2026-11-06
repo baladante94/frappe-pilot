@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frappe-pilot/icon.png" alt="DeskEasy" width="96">
+  <img src="deskeasy/icon.png" alt="DeskEasy" width="96">
 </p>
 
 <h1 align="center">DeskEasy</h1>
@@ -106,7 +106,7 @@ Install from the **[Chrome Web Store](https://chromewebstore.google.com/detail/b
 2. Open your browser and navigate to `chrome://extensions`.
 3. Enable **Developer Mode** (top right).
 4. Click **Load Unpacked**.
-5. Select the `frappe-pilot` folder.
+5. Select the `deskeasy` folder.
 
 ## ⚖️ Disclaimer
 DeskEasy is an independent, community-built tool. It is not affiliated with, endorsed by or sponsored by Frappe Technologies. Frappe and ERPNext are trademarks of their respective owners and are used only to describe what the extension works with.
