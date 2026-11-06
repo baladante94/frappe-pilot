@@ -86,6 +86,7 @@ See at a glance what the current user can do on the open DocType: Read, Write, C
 Preview any record without opening a new tab. Hold `Alt` (`Option` on Mac) and click a link in a list row, a Link field or the timeline, and the full form opens in an overlay on top of your current page.
 - Press `Esc` to close it, or use **Open in tab** to keep it.
 - Same-origin preview, so it shows the real form with all fields, not a summary. You can edit and save right inside it, then press `Esc` and carry on.
+- If you saved something, a small notice offers **Refresh**. It updates just that record (link titles and fetched fields) on the page behind it and keeps your unsaved edits. On a list view it reloads the list. Nothing refreshes on its own.
 - Works on Frappe v15 and v16.
 
 ## ⌨️ Shortcuts
