@@ -31,4 +31,4 @@ It does **not** send the values already entered in your records. The provider's 
 - Content script access limited to `/app` and `/desk` URLs, where the Frappe desk runs.
 
 ## Contact
-Questions or concerns: open an issue at https://github.com/baladante94/frappe-pilot/issues
+Questions or concerns: open an issue at https://github.com/baladante94/deskeasy/issues

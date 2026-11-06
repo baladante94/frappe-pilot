@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://chromewebstore.google.com/detail/frappe-pilot/bnibgaanaemplgmnlgimehepncpbpcdi"><img src="https://img.shields.io/badge/Chrome%20Web%20Store-Install-14b8a6?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Install from the Chrome Web Store"></a>
+  <a href="https://chromewebstore.google.com/detail/bnibgaanaemplgmnlgimehepncpbpcdi"><img src="https://img.shields.io/badge/Chrome%20Web%20Store-Install-14b8a6?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Install from the Chrome Web Store"></a>
   <a href="https://youtu.be/fqtlQOIfLTk"><img src="https://img.shields.io/badge/Watch-2%20min%20demo-ff2e97?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the demo on YouTube"></a>
 </p>
 
@@ -26,7 +26,7 @@ DeskEasy injects a suite of power-user tools directly into the Frappe UI, saving
 |:---:|:---:|
 | <img src="screenshots/1-xray.png" alt="X-Ray field badges with custom fields highlighted"><br>**X-Ray:** fieldnames, types and options, custom fields ★ | <img src="screenshots/2-quick-customize.png" alt="Quick Customize opens the field in Customize Form"><br>**Quick Customize:** click a field, land on it in Customize Form |
 | <img src="screenshots/3-magic-filler.png" alt="Magic Filler filled an Address form"><br>**AI Magic Filler:** realistic test data in one shortcut | <img src="screenshots/4-teleport.png" alt="Teleport paste dialog with existing-record options"><br>**Data Teleport:** move records between sites, safely |
-| <img src="screenshots/5-link-peek-perms.png" alt="Link Peek preview and Perm Inspector"><br>**Link Peek + Perm Inspector** | <img src="screenshots/6-pilot-popup.png" alt="DeskEasy popup with tool toggles and AI settings"><br>**The popup:** every tool is one toggle away |
+| <img src="screenshots/5-link-peek-perms.png" alt="Link Peek preview and Perm Inspector"><br>**Link Peek + Perm Inspector** | <img src="screenshots/6-popup.png" alt="DeskEasy popup with tool toggles and AI settings"><br>**The popup:** every tool is one toggle away |
 
 ## ✨ Features
 
@@ -99,7 +99,7 @@ Preview any record without opening a new tab. Hold `Alt` (`Option` on Mac) and c
 ## 📦 Installation
 
 ### From the Chrome Web Store (recommended)
-Install from the **[Chrome Web Store](https://chromewebstore.google.com/detail/frappe-pilot/bnibgaanaemplgmnlgimehepncpbpcdi)**. It works in Chrome, Edge and Brave, and updates automatically.
+Install from the **[Chrome Web Store](https://chromewebstore.google.com/detail/bnibgaanaemplgmnlgimehepncpbpcdi)**. It works in Chrome, Edge and Brave, and updates automatically.
 
 ### From source
 1. Clone or download this repository.
@@ -108,7 +108,7 @@ Install from the **[Chrome Web Store](https://chromewebstore.google.com/detail/f
 4. Click **Load Unpacked**.
 5. Select the `frappe-pilot` folder.
 
-## Disclaimer
+## ⚖️ Disclaimer
 DeskEasy is an independent, community-built tool. It is not affiliated with, endorsed by or sponsored by Frappe Technologies. Frappe and ERPNext are trademarks of their respective owners and are used only to describe what the extension works with.
 
 ## 🔒 Privacy
