@@ -1026,7 +1026,10 @@
                 b.addEventListener('click', onclick);
                 return b;
             };
-            bar.append(label, mkBtn('Open in tab \u2197', () => { window.open(url.href, '_blank'); this.closeGlance(); }), mkBtn('Esc \u2715', () => this.closeGlance()));
+            bar.append(label, mkBtn('Open in tab \u2197', () => { window.open(url.href, '_blank'); this.closeGlance(true); }), mkBtn('Esc \u2715', () => this.closeGlance()));
+            this._glanceSaved = [];
+            this._glanceLabel = label;
+            this._glanceTitle = label.textContent;
 
             const body = document.createElement('div');
             body.style.cssText = 'position:relative;flex:1;background:#fff;';
@@ -1044,6 +1047,7 @@
                     doc.head.appendChild(css);
                     doc.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.closeGlance(); }, true);
                     frame.contentWindow.focus();
+                    this.watchGlanceSaves(frame);
                 } catch (_) {}
             });
             frame.src = url.href;
@@ -1057,10 +1061,124 @@
             document.addEventListener('keydown', this._glanceKey, true);
         },
 
-        closeGlance: function() {
+        watchGlanceSaves: function(frame) {
+            if (this._glanceTimer) clearInterval(this._glanceTimer);
+            const w = frame.contentWindow;
+            const seen = {};
+            let wasNew = null;
+            this._glanceTimer = setInterval(() => {
+                try {
+                    const f = w.cur_frm;
+                    if (!f || !f.doc) return;
+                    if (f.doc.__islocal) { wasNew = f.doctype; return; }
+                    const key = f.doctype + '::' + f.docname;
+                    if (wasNew === f.doctype) { wasNew = null; seen[key] = f.doc.modified; this.recordGlanceSave(f.doctype, f.docname); return; }
+                    if (!(key in seen)) { seen[key] = f.doc.modified; return; }
+                    if (seen[key] !== f.doc.modified && !f.is_dirty()) { seen[key] = f.doc.modified; this.recordGlanceSave(f.doctype, f.docname); }
+                } catch (_) {}
+            }, 600);
+        },
+
+        recordGlanceSave: function(doctype, name) {
+            if (!this._glanceSaved) this._glanceSaved = [];
+            if (!this._glanceSaved.some(x => x.doctype === doctype && x.name === name)) this._glanceSaved.push({ doctype, name });
+            if (this._glanceLabel) this._glanceLabel.textContent = this._glanceTitle + '  ✓ saved';
+        },
+
+        closeGlance: function(silent) {
             const wrap = document.getElementById('fp-glance');
             if (wrap) wrap.remove();
             if (this._glanceKey) { document.removeEventListener('keydown', this._glanceKey, true); this._glanceKey = null; }
+            if (this._glanceTimer) { clearInterval(this._glanceTimer); this._glanceTimer = null; }
+            const saved = this._glanceSaved || [];
+            this._glanceSaved = [];
+            this._glanceLabel = null;
+            if (wrap && !silent && saved.length) this.showGlanceToast(saved);
+        },
+
+        showGlanceToast: function(items) {
+            const old = document.getElementById('fp-glance-toast');
+            if (old) old.remove();
+            const route = (window.frappe && frappe.get_route) ? frappe.get_route() : [];
+            const onForm = route[0] === 'Form' && window.cur_frm && window.cur_frm.doc;
+            const onList = route[0] === 'List' && window.cur_list;
+            if (!onForm && !onList) return;
+
+            const toast = document.createElement('div');
+            toast.id = 'fp-glance-toast';
+            toast.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:100001;max-width:340px;background:#1e293b;color:#f8fafc;border-radius:10px;padding:12px 14px;box-shadow:0 12px 32px rgba(0,0,0,0.3);font:13px system-ui,sans-serif;display:flex;flex-direction:column;gap:8px;';
+            const msg = document.createElement('div');
+            msg.style.cssText = 'font-weight:600;word-break:break-word;';
+            msg.textContent = items.length === 1 ? items[0].doctype + ' ' + items[0].name + ' updated' : items.length + ' records updated';
+            const sub = document.createElement('div');
+            sub.style.cssText = 'font-size:12px;color:#94a3b8;';
+            sub.textContent = onForm ? 'Refresh to show the changes here. Your unsaved edits stay.' : 'Refresh to reload the list.';
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;gap:8px;';
+            const mk = (text, bg, color) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = text;
+                b.style.cssText = 'border:0;border-radius:6px;padding:4px 12px;font:600 12px system-ui,sans-serif;cursor:pointer;background:' + bg + ';color:' + color + ';';
+                return b;
+            };
+            const refresh = mk('Refresh', '#14b8a6', '#04302b');
+            const dismiss = mk('Dismiss', 'transparent', '#cbd5e1');
+            let timer = setTimeout(() => toast.remove(), 25000);
+            dismiss.onclick = () => { clearTimeout(timer); toast.remove(); };
+            refresh.onclick = async () => {
+                clearTimeout(timer);
+                refresh.disabled = true;
+                refresh.textContent = 'Refreshing…';
+                let kept = false;
+                try { kept = await this.refreshAfterGlance(items); } catch (_) {}
+                msg.textContent = kept ? 'Unsaved edits kept, this form was not reloaded' : 'Refreshed';
+                sub.remove();
+                row.remove();
+                timer = setTimeout(() => toast.remove(), 2500);
+            };
+            row.append(refresh, dismiss);
+            toast.append(msg, sub, row);
+            document.body.appendChild(toast);
+        },
+
+        refreshAfterGlance: async function(items) {
+            const route = frappe.get_route();
+            if (route[0] === 'List' && window.cur_list) { await window.cur_list.refresh(); return false; }
+            const frm = window.cur_frm;
+            if (!frm || !frm.doc) return false;
+            let kept = false;
+            for (const it of items) {
+                if (frm.doctype === it.doctype && frm.docname === it.name) {
+                    if (frm.is_dirty()) kept = true; else await frm.reload_doc();
+                    continue;
+                }
+                if (frappe._link_titles) delete frappe._link_titles[it.doctype + '::' + it.name];
+                try { if (frappe.utils.fetch_link_title) await frappe.utils.fetch_link_title(it.doctype, it.name); } catch (_) {}
+                const fresh = await frappe.call({ method: 'frappe.client.get', args: { doctype: it.doctype, name: it.name } }).then(r => r.message).catch(() => null);
+                if (!fresh) continue;
+                const sync = (doc, fields) => {
+                    let changed = false;
+                    fields.forEach(df => {
+                        if (df.fieldtype === 'Link' && df.options === it.doctype && doc[df.fieldname] === it.name) changed = true;
+                        if (!df.fetch_from) return;
+                        const parts = df.fetch_from.split('.');
+                        const src = fields.find(x => x.fieldname === parts[0]);
+                        if (!src || src.options !== it.doctype || doc[src.fieldname] !== it.name) return;
+                        const v = fresh[parts.slice(1).join('.')];
+                        if (v !== undefined && doc[df.fieldname] !== v) { doc[df.fieldname] = v; changed = true; }
+                    });
+                    return changed;
+                };
+                if (sync(frm.doc, frm.meta.fields)) frm.refresh_fields();
+                frm.meta.fields.filter(df => df.fieldtype === 'Table').forEach(df => {
+                    const fields = frappe.get_meta(df.options).fields;
+                    let any = false;
+                    (frm.doc[df.fieldname] || []).forEach(row => { if (sync(row, fields)) any = true; });
+                    if (any) frm.refresh_field(df.fieldname);
+                });
+            }
+            return kept;
         },
 
         // ============================================================
@@ -1271,9 +1389,9 @@
         intervals.forEach(clearInterval);
         window.removeEventListener("message", onMessage);
         document.removeEventListener("click", onGlanceClick, true);
-        if (window.frappePilot && window.frappePilot.closeGlance) window.frappePilot.closeGlance();
+        if (window.frappePilot && window.frappePilot.closeGlance) window.frappePilot.closeGlance(true);
         if (observer) observer.disconnect();
-        document.querySelectorAll('.fp-teleport-btn, .fp-schema-btn').forEach(e => e.remove());
+        document.querySelectorAll('.fp-teleport-btn, .fp-schema-btn, #fp-glance-toast').forEach(e => e.remove());
         if (window.frappePilot && window.frappePilot.teardownRefreshHooks) window.frappePilot.teardownRefreshHooks();
     };
 })();
